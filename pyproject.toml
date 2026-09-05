@@ -1,0 +1,26 @@
+[project]
+name = "chatbot"
+version = "0.1.0"
+description = "A small chat app that reports where it is running"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "httpx>=0.28.1",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.6",
+]
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
