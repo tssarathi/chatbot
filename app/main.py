@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import time
@@ -5,6 +6,7 @@ import uuid
 
 import httpx
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -46,16 +48,27 @@ def whereami():
     }
 
 
+async def _stream(history: list[dict[str, str]]):
+    words = []
+    async with httpx.AsyncClient(timeout=120) as client:
+        async with client.stream(
+            "POST",
+            f"{OLLAMA_URL}/api/chat",
+            json={"model": MODEL_NAME, "messages": history, "stream": True},
+        ) as r:
+            async for line in r.aiter_lines():
+                if not line:
+                    continue
+                token = json.loads(line)["message"]["content"]
+                words.append(token)
+                yield f"data: {json.dumps({'token': token})}\n\n"
+
+    history.append({"role": "assistant", "content": "".join(words)})
+    yield f"data: {json.dumps({'done': True, 'turns': len(history)})}\n\n"
+
+
 @app.post("/chat")
 async def chat(ask: Ask):
     history = SESSIONS.setdefault(ask.session, [])
     history.append({"role": "user", "content": ask.message})
-
-    async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={"model": MODEL_NAME, "messages": history, "stream": False},
-        )
-    reply = r.json()["message"]
-    history.append(reply)
-    return {"reply": reply["content"], "turns": len(history)}
+    return StreamingResponse(_stream(history), media_type="text/event-stream")
