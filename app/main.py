@@ -27,6 +27,7 @@ OLLAMA_URL = os.getenv("OLLAMA_URL") or "http://localhost:11434"
 MODEL_NAME = os.getenv("MODEL_NAME") or "granite3.1-moe:1b"
 
 SESSIONS: dict[str, list[dict[str, str]]] = {}
+LINK: dict[str, object] = {"ttft_ms": None, "tok_per_s": None, "error": None}
 
 
 class Ask(BaseModel):
@@ -44,27 +45,48 @@ def whereami():
         "pod": os.getenv("POD_NAME") or HOST,
         "pod_ip": os.getenv("POD_IP") or LOCAL_IP,
         "instance_id": INSTANCE_ID,
+        "model": MODEL_NAME,
+        "model_url": OLLAMA_URL,
+        "link": LINK,
         "uptime_s": round(time.monotonic() - STARTED, 1),
     }
 
 
-async def _stream(history: list[dict[str, str]]):
-    words = []
-    async with httpx.AsyncClient(timeout=120) as client:
-        async with client.stream(
-            "POST",
-            f"{OLLAMA_URL}/api/chat",
-            json={"model": MODEL_NAME, "messages": history, "stream": True},
-        ) as r:
-            async for line in r.aiter_lines():
-                if not line:
-                    continue
-                token = json.loads(line)["message"]["content"]
-                words.append(token)
-                yield f"data: {json.dumps({'token': token})}\n\n"
+def _rate(frame: dict) -> float | None:
+    n, ns = frame.get("eval_count"), frame.get("eval_duration")
+    return round(n / (ns / 1e9), 1) if n and ns else None
 
+
+async def _stream(history: list[dict[str, str]]):
+    words: list[str] = []
+    t0 = time.monotonic()
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                f"{OLLAMA_URL}/api/chat",
+                json={"model": MODEL_NAME, "messages": history, "stream": True},
+            ) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if not line:
+                        continue
+                    frame = json.loads(line)
+                    if frame.get("done"):
+                        LINK["tok_per_s"] = _rate(frame)
+                        break
+                    if not words:
+                        LINK["ttft_ms"] = round((time.monotonic() - t0) * 1000)
+                    words.append(frame["message"]["content"])
+                    yield f"data: {json.dumps({'token': words[-1]})}\n\n"
+    except httpx.HTTPError as exc:
+        LINK["error"] = exc.__class__.__name__
+        yield f"data: {json.dumps({'error': 'model unreachable', 'detail': LINK['error']})}\n\n"
+        return
+
+    LINK["error"] = None
     history.append({"role": "assistant", "content": "".join(words)})
-    yield f"data: {json.dumps({'done': True, 'turns': len(history)})}\n\n"
+    yield f"data: {json.dumps({'done': True, 'turns': len(history), **LINK})}\n\n"
 
 
 @app.post("/chat")
