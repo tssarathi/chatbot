@@ -1,15 +1,15 @@
+import asyncio
 import json
 import os
 import socket
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-
-app = FastAPI()
 
 
 def _local_ip() -> str:
@@ -27,7 +27,46 @@ OLLAMA_URL = os.getenv("OLLAMA_URL") or "http://localhost:11434"
 MODEL_NAME = os.getenv("MODEL_NAME") or "granite3.1-moe:1b"
 
 SESSIONS: dict[str, list[dict[str, str]]] = {}
-LINK: dict[str, object] = {"ttft_ms": None, "tok_per_s": None, "error": None}
+LINK: dict[str, float | str | None] = {
+    "rtt_ms": None,
+    "model_ip": None,
+    "ttft_ms": None,
+    "tok_per_s": None,
+    "error": None,
+}
+
+
+async def _probe() -> None:
+    url = httpx.URL(OLLAMA_URL)
+    loop = asyncio.get_running_loop()
+    async with httpx.AsyncClient(timeout=2) as client:
+        while True:
+            t0 = time.monotonic()
+            try:
+                r = await client.get(f"{OLLAMA_URL}/api/version")
+                r.raise_for_status()
+                rtt = (time.monotonic() - t0) * 1000
+                prev = LINK["rtt_ms"]
+                LINK["rtt_ms"] = round(
+                    rtt if not isinstance(prev, float) else 0.3 * rtt + 0.7 * prev, 2
+                )
+                info = await loop.getaddrinfo(url.host, url.port or 11434, family=socket.AF_INET)
+                LINK["model_ip"] = info[0][4][0]
+                LINK["error"] = None
+            except (httpx.HTTPError, OSError) as exc:
+                LINK["rtt_ms"] = None
+                LINK["error"] = exc.__class__.__name__
+            await asyncio.sleep(2)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_probe())
+    yield
+    task.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class Ask(BaseModel):
@@ -80,11 +119,10 @@ async def _stream(history: list[dict[str, str]]):
                     words.append(frame["message"]["content"])
                     yield f"data: {json.dumps({'token': words[-1]})}\n\n"
     except httpx.HTTPError as exc:
-        LINK["error"] = exc.__class__.__name__
-        yield f"data: {json.dumps({'error': 'model unreachable', 'detail': LINK['error']})}\n\n"
+        detail = exc.__class__.__name__
+        yield f"data: {json.dumps({'error': 'model unreachable', 'detail': detail})}\n\n"
         return
 
-    LINK["error"] = None
     history.append({"role": "assistant", "content": "".join(words)})
     yield f"data: {json.dumps({'done': True, 'turns': len(history), **LINK})}\n\n"
 
