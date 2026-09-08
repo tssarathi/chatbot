@@ -58,7 +58,11 @@ async def _probe() -> None:
                 LINK["model_ip"] = info[0][4][0]
                 LINK["error"] = None
             except (httpx.HTTPError, OSError) as exc:
-                LINK["rtt_ms"] = None
+                # clear every metric, not just rtt: leaving a stale first-token and
+                # throughput on screen reports live model performance over a link
+                # the same panel is calling down
+                LINK["rtt_ms"] = LINK["ttft_ms"] = LINK["tok_per_s"] = None
+                LINK["model_ip"] = None
                 LINK["error"] = exc.__class__.__name__
             await asyncio.sleep(2)
 
