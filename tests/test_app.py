@@ -184,11 +184,25 @@ def test_session_id_never_calls_a_secure_context_only_api():
     assert not re.search(r"(?<!\?)\.\s*randomUUID\s*\(", SCRIPT)
 
 
-def test_theme_blocks_declare_the_same_tokens():
-    media = re.search(r":root:not\(\[data-theme='light'\]\) \{(.*?)\n\t{4}\}", INDEX, re.S)
-    attr = re.search(r":root\[data-theme='dark'\] \{(.*?)\n\t{3}\}", INDEX, re.S)
-    names = lambda block: set(re.findall(r"(--[a-z0-9-]+)\s*:", block))  # noqa: E731
-    assert names(media.group(1)) == names(attr.group(1))
+def test_theme_cannot_drift():
+    """Every token is declared exactly once, so the two dark paths cannot disagree.
+
+    This used to be three blocks (light, @media dark, [data-theme=dark]) with the
+    dark values written twice; editing one and not the other made system-dark and
+    toggle-dark render differently for different users, silently.
+    """
+    style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
+    declared = re.findall(r"^\s*(--[a-z0-9-]+)\s*:", style, re.M)
+    dupes = {n for n in declared if declared.count(n) > 1}
+    assert not dupes, f"declared more than once, so they can drift: {sorted(dupes)}"
+    assert "prefers-color-scheme" not in style
+
+
+def test_all_three_theme_states_are_switchable():
+    style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
+    assert "color-scheme: light dark;" in style
+    assert re.search(r":root\[data-theme='light'\] \{\s*color-scheme: light;", style)
+    assert re.search(r":root\[data-theme='dark'\] \{\s*color-scheme: dark;", style)
 
 
 def test_every_css_variable_used_is_defined():

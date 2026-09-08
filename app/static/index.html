@@ -11,6 +11,8 @@
 		<style>
 
 			:root {
+				color-scheme: light dark;
+
 				--gray-50: oklch(0.98 0 0);
 				--gray-100: oklch(0.94 0 0);
 				--gray-200: oklch(0.92 0 0);
@@ -31,126 +33,52 @@
 				--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 					'Liberation Mono', 'Courier New', monospace;
 
-				--bg: #ffffff;
-				--fg: var(--gray-700);
-				--fg-strong: #000000;
-				--bubble: var(--gray-50);
-				--muted: var(--gray-600);
-				--panel: #ffffff;
-				--panel-border: var(--gray-200);
-				--hover: rgb(0 0 0 / 0.05);
-				--fade-from: rgb(255 255 255 / 0.9);
-				--fade-via: rgb(255 255 255 / 0.5);
-				--send-bg: #000000;
-				--send-fg: #ffffff;
-				--send-bg-hover: var(--gray-900);
-				--onprem: oklch(0.58 0.13 62);
-				--cloud: oklch(0.55 0.15 250);
-				--ok: oklch(0.65 0.16 150);
-				--bad: oklch(0.62 0.2 25);
+				--bg: light-dark(#ffffff, var(--gray-900));
+				--fg: light-dark(var(--gray-700), var(--gray-100));
+				--fg-strong: light-dark(#000000, #ffffff);
+				--bubble: light-dark(var(--gray-50), var(--gray-850));
+				--muted: light-dark(var(--gray-600), var(--gray-400));
+				--panel: light-dark(#ffffff, var(--gray-850));
+				--panel-border: light-dark(var(--gray-200), var(--gray-800));
+				--hover: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.05));
+				--fade-from: light-dark(rgb(255 255 255 / 0.9), oklch(0.2 0 0 / 0.9));
+				--fade-via: light-dark(rgb(255 255 255 / 0.5), oklch(0.2 0 0 / 0.5));
+				--send-bg: light-dark(#000000, #ffffff);
+				--send-fg: light-dark(#ffffff, #000000);
+				--send-bg-hover: light-dark(var(--gray-900), var(--gray-100));
+				--onprem: light-dark(oklch(0.58 0.13 62), oklch(0.72 0.13 62));
+				--cloud: light-dark(oklch(0.55 0.15 250), oklch(0.7 0.13 250));
+				--ok: light-dark(oklch(0.65 0.16 150), oklch(0.75 0.17 150));
+				--bad: light-dark(oklch(0.62 0.2 25), oklch(0.7 0.19 25));
 
-				--hr: var(--gray-50);
-				--composer-hover: var(--gray-200);
-				--composer-focus: var(--gray-100);
-				--composer-border: var(--gray-100);
-				--composer-bg: rgb(255 255 255 / 0.05);
-				--hover-soft: color-mix(in oklch, var(--gray-50) 40%, transparent);
-				--hover-fg: var(--gray-700);
-				--actions-alt: var(--gray-600);
-				--chip-fg: var(--gray-600);
-				--code-bg: var(--gray-100);
-				--code-fg: var(--gray-800);
-				--rule: var(--gray-200);
-				--send-off-bg: var(--gray-200);
-				--send-off-fg: #ffffff;
-				--sugg-title: var(--gray-700);
-				--sugg-title-hover: var(--gray-950);
-				--err-bg: rgb(0 0 0 / 0.03);
-				--caret: var(--gray-400);
-				--actions: var(--gray-600);
-				--stat: var(--gray-600);
+				--hr: light-dark(var(--gray-50), color-mix(in oklch, var(--gray-850) 30%, transparent));
+				--composer-hover: light-dark(var(--gray-200), var(--gray-800));
+				--composer-focus: light-dark(var(--gray-100), var(--gray-800));
+				--composer-border: light-dark(var(--gray-100), var(--gray-850));
+				--composer-bg: light-dark(rgb(255 255 255 / 0.05), color-mix(in oklch, var(--gray-500) 5%, transparent));
+				--hover-soft: light-dark(color-mix(in oklch, var(--gray-50) 40%, transparent), color-mix(in oklch, var(--gray-800) 40%, transparent));
+				--hover-fg: light-dark(var(--gray-700), var(--gray-200));
+				--actions-alt: light-dark(var(--gray-600), var(--gray-400));
+				--chip-fg: light-dark(var(--gray-600), var(--gray-300));
+				--code-bg: light-dark(var(--gray-100), var(--gray-800));
+				--code-fg: light-dark(var(--gray-800), var(--gray-200));
+				--rule: light-dark(var(--gray-200), var(--gray-700));
+				--send-off-bg: light-dark(var(--gray-200), var(--gray-700));
+				--send-off-fg: light-dark(#ffffff, var(--gray-900));
+				--sugg-title: light-dark(var(--gray-700), var(--gray-300));
+				--sugg-title-hover: light-dark(var(--gray-950), #ffffff);
+				--err-bg: light-dark(rgb(0 0 0 / 0.03), rgb(255 255 255 / 0.04));
+				--caret: light-dark(var(--gray-400), var(--gray-500));
+				--actions: light-dark(var(--gray-600), var(--gray-500));
+				--stat: light-dark(var(--gray-600), var(--gray-400));
 			}
 
-			@media (prefers-color-scheme: dark) {
-				:root:not([data-theme='light']) {
-					--bg: var(--gray-900);
-					--fg: var(--gray-100);
-					--fg-strong: #ffffff;
-					--bubble: var(--gray-850);
-					--muted: var(--gray-400);
-					--panel: var(--gray-850);
-					--panel-border: var(--gray-800);
-					--hover: rgb(255 255 255 / 0.05);
-					--fade-from: oklch(0.2 0 0 / 0.9);
-					--fade-via: oklch(0.2 0 0 / 0.5);
-					--send-bg: #ffffff;
-					--send-fg: #000000;
-					--send-bg-hover: var(--gray-100);
-					--onprem: oklch(0.72 0.13 62);
-					--cloud: oklch(0.7 0.13 250);
-					--ok: oklch(0.75 0.17 150);
-					--bad: oklch(0.7 0.19 25);
-				--hr: color-mix(in oklch, var(--gray-850) 30%, transparent);
-				--composer-hover: var(--gray-800);
-				--composer-focus: var(--gray-800);
-				--composer-border: var(--gray-850);
-				--composer-bg: color-mix(in oklch, var(--gray-500) 5%, transparent);
-				--hover-soft: color-mix(in oklch, var(--gray-800) 40%, transparent);
-				--hover-fg: var(--gray-200);
-				--actions-alt: var(--gray-400);
-				--chip-fg: var(--gray-300);
-				--code-bg: var(--gray-800);
-				--code-fg: var(--gray-200);
-				--rule: var(--gray-700);
-				--send-off-bg: var(--gray-700);
-				--send-off-fg: var(--gray-900);
-				--sugg-title: var(--gray-300);
-				--sugg-title-hover: #ffffff;
-				--err-bg: rgb(255 255 255 / 0.04);
-				--caret: var(--gray-500);
-				--actions: var(--gray-500);
-				--stat: var(--gray-400);
-				}
+			:root[data-theme='light'] {
+				color-scheme: light;
 			}
 
 			:root[data-theme='dark'] {
-				--bg: var(--gray-900);
-				--fg: var(--gray-100);
-				--fg-strong: #ffffff;
-				--bubble: var(--gray-850);
-				--muted: var(--gray-400);
-				--panel: var(--gray-850);
-				--panel-border: var(--gray-800);
-				--hover: rgb(255 255 255 / 0.05);
-				--fade-from: oklch(0.2 0 0 / 0.9);
-				--fade-via: oklch(0.2 0 0 / 0.5);
-				--send-bg: #ffffff;
-				--send-fg: #000000;
-				--send-bg-hover: var(--gray-100);
-				--onprem: oklch(0.72 0.13 62);
-				--cloud: oklch(0.7 0.13 250);
-				--ok: oklch(0.75 0.17 150);
-				--bad: oklch(0.7 0.19 25);
-				--hr: color-mix(in oklch, var(--gray-850) 30%, transparent);
-				--composer-hover: var(--gray-800);
-				--composer-focus: var(--gray-800);
-				--composer-border: var(--gray-850);
-				--composer-bg: color-mix(in oklch, var(--gray-500) 5%, transparent);
-				--hover-soft: color-mix(in oklch, var(--gray-800) 40%, transparent);
-				--hover-fg: var(--gray-200);
-				--actions-alt: var(--gray-400);
-				--chip-fg: var(--gray-300);
-				--code-bg: var(--gray-800);
-				--code-fg: var(--gray-200);
-				--rule: var(--gray-700);
-				--send-off-bg: var(--gray-700);
-				--send-off-fg: var(--gray-900);
-				--sugg-title: var(--gray-300);
-				--sugg-title-hover: #ffffff;
-				--err-bg: rgb(255 255 255 / 0.04);
-				--caret: var(--gray-500);
-				--actions: var(--gray-500);
-				--stat: var(--gray-400);
+				color-scheme: dark;
 			}
 
 			*,
