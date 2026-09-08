@@ -3,7 +3,7 @@ name: chatbot
 x-site: &site
   build: .
   depends_on: [modellink]
-  ports: ["8200:8000"]
+  ports: ["127.0.0.1:8200:8000"]
   healthcheck:
     test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/healthz')"]
     interval: 5s
