@@ -17,11 +17,13 @@ x-site-env: &site-env
 
 services:
   modellink:
-    image: alpine/socat:latest
-    command: TCP-LISTEN:11434,fork,reuseaddr TCP:host.docker.internal:11434
+    image: nginx:alpine
     networks: [onprem, cloud]
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    configs:
+      - source: modellink
+        target: /etc/nginx/conf.d/default.conf
 
   onprem:
     <<: *site
@@ -54,3 +56,17 @@ networks:
   cloud:
     ipam:
       config: [{subnet: 10.30.0.0/24}]
+
+configs:
+  modellink:
+    content: |
+      server {
+        listen 11434;
+        location / {
+          proxy_pass http://host.docker.internal:11434;
+          proxy_set_header Host localhost:11434;
+          proxy_buffering off;
+          proxy_request_buffering off;
+          proxy_read_timeout 300s;
+        }
+      }
