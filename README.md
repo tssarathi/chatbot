@@ -78,4 +78,5 @@ and exercises a different path.
 ```
 uv run ruff check app/     # lint
 uv run ruff format app/    # format
+uv run pytest              # tests
 ```
