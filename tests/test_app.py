@@ -204,6 +204,16 @@ def test_every_lookup_in_the_page_resolves():
     assert used <= have, f"no element with id: {sorted(used - have)}"
 
 
+def test_a_single_failed_poll_does_not_kill_a_healthy_answer():
+    poll = _fn("poll")
+    fail_branch = poll[poll.index("} catch {") :]
+    assert re.search(r"pollFails\s*>=\s*2", fail_branch)
+
+
+def test_no_abort_is_silent():
+    assert "else if (abortNote)" not in SCRIPT
+
+
 def test_session_id_never_calls_a_secure_context_only_api():
     assert not re.search(r"(?<!\?)\.\s*randomUUID\s*\(", SCRIPT)
 

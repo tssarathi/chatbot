@@ -1057,6 +1057,7 @@
 			let ctrl = null;
 			let abortNote = null;
 			let linkDownPolls = 0;
+			let pollFails = 0;
 
 			async function send() {
 				const text = $('input').value.trim();
@@ -1135,8 +1136,9 @@
 				} catch (e) {
 					if (e.name !== 'AbortError') {
 						prose.innerHTML = md(acc) + `<span class="err">${esc(String(e))}</span>`;
-					} else if (abortNote) {
-						prose.innerHTML = md(acc) + `<span class="err">${esc(abortNote)}</span>`;
+					} else {
+						const why = abortNote || 'answer stopped';
+						prose.innerHTML = md(acc) + `<span class="err">${esc(why)}</span>`;
 					}
 				} finally {
 					abortNote = null;
@@ -1252,8 +1254,10 @@
 					d = await r.json();
 					if (!d.instance_id) throw new Error('no instance_id');
 				} catch {
-					if (!state.down) {
+					pollFails += 1;
+					if (pollFails >= 2 && !state.down) {
 						state.down = true;
+						abortNote = 'lost contact with the app';
 						ctrl?.abort();
 						$('hud-dot').className = 'dot bad';
 						$('hud-site').textContent = 'reconnecting…';
@@ -1287,6 +1291,7 @@
 					state.model = d.model;
 					state.lastOk = Date.now();
 					state.down = false;
+					pollFails = 0;
 					paint(d);
 
 					linkDownPolls = d.link.error ? linkDownPolls + 1 : 0;
