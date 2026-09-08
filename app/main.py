@@ -80,9 +80,14 @@ class Ask(BaseModel):
     message: str
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def index():
     return FileResponse(INDEX, headers={"cache-control": "no-cache"})
+
+
+@app.api_route("/healthz", methods=["GET", "HEAD"])
+def healthz():
+    return {"status": "ok", "instance_id": INSTANCE_ID}
 
 
 @app.get("/whereami")
