@@ -1,0 +1,1471 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Chat</title>
+		<link rel="stylesheet" href="/static/vendor/github-dark.min.css" />
+		<script src="/static/vendor/marked.min.js"></script>
+		<script src="/static/vendor/purify.min.js"></script>
+		<script src="/static/vendor/highlight.min.js"></script>
+		<style>
+			/* Colour ramp copied from Open WebUI src/tailwind.css @theme (zero chroma). */
+			:root {
+				--gray-50: oklch(0.98 0 0);
+				--gray-100: oklch(0.94 0 0);
+				--gray-200: oklch(0.92 0 0);
+				--gray-300: oklch(0.85 0 0);
+				--gray-400: oklch(0.77 0 0);
+				--gray-500: oklch(0.69 0 0);
+				--gray-600: oklch(0.51 0 0);
+				--gray-700: oklch(0.42 0 0);
+				--gray-800: oklch(0.32 0 0);
+				--gray-850: oklch(0.27 0 0);
+				--gray-900: oklch(0.2 0 0);
+				--gray-950: oklch(0.16 0 0);
+
+				--font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Vazirmatn', ui-sans-serif,
+					system-ui, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif,
+					'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+					'Noto Color Emoji';
+				--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+					'Liberation Mono', 'Courier New', monospace;
+
+				/* semantic, light */
+				--bg: #ffffff;
+				--fg: var(--gray-700);
+				--fg-strong: #000000;
+				--bubble: var(--gray-50);
+				--border: var(--gray-100);
+				--muted: var(--gray-600);     /* raised from OWUI's gray-500: 2.78:1 on white */
+				--panel: #ffffff;
+				--panel-border: var(--gray-200);
+				--hover: rgb(0 0 0 / 0.05);
+				--fade-from: rgb(255 255 255 / 0.9);
+				--fade-via: rgb(255 255 255 / 0.5);
+				--send-bg: #000000;
+				--send-fg: #ffffff;
+				--send-bg-hover: var(--gray-900);
+				--onprem: oklch(0.58 0.13 62);
+				--cloud: oklch(0.55 0.15 250);
+				--ok: oklch(0.65 0.16 150);
+				--bad: oklch(0.62 0.2 25);
+				/* OWUI flips these between themes */
+				--hr: var(--gray-50);          /* prose-hr:border-gray-50 */
+				--composer-hover: var(--gray-200);   /* hover:border-gray-200 */
+				--composer-focus: var(--gray-100);   /* focus-within:border-gray-100 */
+				--composer-border: var(--gray-100);  /* border-gray-100/30 */
+				--composer-bg: rgb(255 255 255 / 0.05);
+				--hover-soft: color-mix(in oklch, var(--gray-50) 40%, transparent);
+				--hover-fg: var(--gray-700);
+				--actions-alt: var(--gray-600);
+				--chip-fg: var(--gray-600);
+				--code-bg: var(--gray-100);
+				--code-fg: var(--gray-800);
+				--rule: var(--gray-200);
+				--send-off-bg: var(--gray-200);
+				--send-off-fg: #ffffff;
+				--sugg-title: var(--gray-700);
+				--sugg-title-hover: var(--gray-950);
+				--err-bg: rgb(0 0 0 / 0.03);
+				--caret: var(--gray-400);      /* bg-gray-400 dark:bg-gray-500 */
+				--actions: var(--gray-600);    /* text-gray-600 dark:text-gray-500 */
+				--stat: var(--gray-600);       /* raised from OWUI's gray-400: 2.07:1 on white */
+			}
+
+			@media (prefers-color-scheme: dark) {
+				:root:not([data-theme='light']) {
+					--bg: var(--gray-900);
+					--fg: var(--gray-100);
+					--fg-strong: #ffffff;
+					--bubble: var(--gray-850);
+					--border: var(--gray-800);
+					--muted: var(--gray-400);
+					--panel: var(--gray-850);
+					--panel-border: var(--gray-800);
+					--hover: rgb(255 255 255 / 0.05);
+					--fade-from: oklch(0.2 0 0 / 0.9);
+					--fade-via: oklch(0.2 0 0 / 0.5);
+					--send-bg: #ffffff;
+					--send-fg: #000000;
+					--send-bg-hover: var(--gray-100);
+					--onprem: oklch(0.72 0.13 62);
+					--cloud: oklch(0.7 0.13 250);
+					--ok: oklch(0.75 0.17 150);
+					--bad: oklch(0.7 0.19 25);
+				--hr: color-mix(in oklch, var(--gray-850) 30%, transparent);
+				--composer-hover: var(--gray-800);
+				--composer-focus: var(--gray-800);
+				--composer-border: var(--gray-850);
+				--composer-bg: color-mix(in oklch, var(--gray-500) 5%, transparent);
+				--hover-soft: color-mix(in oklch, var(--gray-800) 40%, transparent);
+				--hover-fg: var(--gray-200);
+				--actions-alt: var(--gray-400);
+				--chip-fg: var(--gray-300);
+				--code-bg: var(--gray-800);
+				--code-fg: var(--gray-200);
+				--rule: var(--gray-700);
+				--send-off-bg: var(--gray-700);
+				--send-off-fg: var(--gray-900);
+				--sugg-title: var(--gray-300);
+				--sugg-title-hover: #ffffff;
+				--err-bg: rgb(255 255 255 / 0.04);
+				--caret: var(--gray-500);
+				--actions: var(--gray-500);
+				--stat: var(--gray-400);
+				}
+			}
+
+			:root[data-theme='dark'] {
+				--bg: var(--gray-900);
+				--fg: var(--gray-100);
+				--fg-strong: #ffffff;
+				--bubble: var(--gray-850);
+				--border: var(--gray-800);
+				--muted: var(--gray-400);
+				--panel: var(--gray-850);
+				--panel-border: var(--gray-800);
+				--hover: rgb(255 255 255 / 0.05);
+				--fade-from: oklch(0.2 0 0 / 0.9);
+				--fade-via: oklch(0.2 0 0 / 0.5);
+				--send-bg: #ffffff;
+				--send-fg: #000000;
+				--send-bg-hover: var(--gray-100);
+				--onprem: oklch(0.72 0.13 62);
+				--cloud: oklch(0.7 0.13 250);
+				--ok: oklch(0.75 0.17 150);
+				--bad: oklch(0.7 0.19 25);
+				--hr: color-mix(in oklch, var(--gray-850) 30%, transparent);
+				--composer-hover: var(--gray-800);
+				--composer-focus: var(--gray-800);
+				--composer-border: var(--gray-850);
+				--composer-bg: color-mix(in oklch, var(--gray-500) 5%, transparent);
+				--hover-soft: color-mix(in oklch, var(--gray-800) 40%, transparent);
+				--hover-fg: var(--gray-200);
+				--actions-alt: var(--gray-400);
+				--chip-fg: var(--gray-300);
+				--code-bg: var(--gray-800);
+				--code-fg: var(--gray-200);
+				--rule: var(--gray-700);
+				--send-off-bg: var(--gray-700);
+				--send-off-fg: var(--gray-900);
+				--sugg-title: var(--gray-300);
+				--sugg-title-hover: #ffffff;
+				--err-bg: rgb(255 255 255 / 0.04);
+				--caret: var(--gray-500);
+				--actions: var(--gray-500);
+				--stat: var(--gray-400);
+			}
+
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+				border-color: var(--gray-200); /* tailwind.css:35-43 — not theme-flipped */
+			}
+
+			[hidden] {
+				display: none !important;
+			}
+
+			html {
+				font-family: var(--font-sans);
+				word-break: break-word;
+			}
+
+			body {
+				margin: 0;
+				height: 100dvh;
+				overflow: hidden;
+				background: var(--bg);
+				color: var(--fg);
+				display: flex;
+				flex-direction: column;
+			}
+
+			#app {
+				flex: 1;
+				min-height: 0;
+				display: flex;
+				flex-direction: column;
+			}
+
+			button {
+				cursor: pointer;
+				font: inherit;
+			}
+
+			/* ── navbar ───────────────────────────────────────────────
+			   Open WebUI: sticky top-0 z-30 w-full pt-0.5 pb-1 -mb-12,
+			   with a gradient underlay fading the messages beneath it. */
+			.navbar {
+				position: sticky;
+				top: 0;
+				z-index: 30;
+				width: 100%;
+				/* pt raised from OWUI's pt-0.5 so the icons share the legend's
+				   centreline: this bar has no title to set the height */
+				padding: 0.6875rem 0.25rem 0.25rem 0.375rem;
+				margin-bottom: -3rem;
+				display: flex;
+				align-items: center;
+				flex: none;
+			}
+
+			.navbar::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				bottom: -2.5rem;
+				z-index: -1;
+				pointer-events: none;
+				background: linear-gradient(
+					to bottom,
+					var(--fade-from) 0%,
+					var(--fade-via) 40%,
+					transparent 97%
+				);
+			}
+
+			.navbar-actions {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				margin-left: 0.5rem;
+			}
+
+			.icon-btn {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 1.5rem;
+				height: 1.5rem;
+				border: 0;
+				background: transparent;
+				border-radius: 0.5rem;
+				color: var(--actions-alt);
+				transition: background 0.15s, color 0.15s;
+			}
+
+			.icon-btn:hover {
+				background: var(--hover-soft); /* Navbar.svelte:143 hover:bg-gray-50/40 */
+				color: var(--hover-fg);
+			}
+
+			.icon-btn svg {
+				width: 1.125rem;
+				height: 1.125rem;
+			}
+
+			/* ── message list ─────────────────────────────────────────
+			   Open WebUI: max-w-[58rem] mx-auto px-3.5 mb-3, pt-18 */
+			#scroll {
+				flex: 1;
+				overflow-y: auto;
+				overflow-x: hidden;
+				padding-top: 4.5rem;
+				display: flex;
+				flex-direction: column;
+			}
+
+			.msg {
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
+				width: 100%;
+				max-width: min(52rem, 100vw - 620px); /* 832px: clears the 288px legend gutter at 1440 */
+				margin: 0 auto 0.75rem;
+				padding: 0 0.875rem;
+			}
+
+			/* user: right-aligned bubble, rounded-3xl, max-w-[90%], px-4 py-1.5 */
+			#messages:not(:empty) {
+				padding-bottom: 4.5rem; /* Messages.svelte:578 <div class="pb-18" /> */
+			}
+
+			.msg.user .row {
+				display: flex;
+				justify-content: flex-end;
+				padding-bottom: 0.25rem;
+			}
+
+			.bubble {
+				border-radius: 1.5rem;
+				max-width: 90%;
+				padding: 0.375rem 1rem;
+				background: var(--bubble);
+			}
+
+			/* assistant: avatar + name + prose, no bubble */
+			.msg.assistant {
+				margin-top: 1rem; /* a turn boundary must outweigh a line break */
+			}
+
+			.msg.assistant .row {
+				display: flex;
+				width: 100%;
+			}
+
+			/* ResponseMessage.svelte:668 size-7 + ProfileImage rounded-2xl */
+			.mark {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				background: var(--fg-strong);
+				color: var(--bg);
+				flex: none;
+			}
+
+			.mark svg {
+				width: 62%;
+				height: 62%;
+			}
+
+			.avatar {
+				margin-right: 0.5rem;
+				margin-top: 0.125rem;
+				width: 1.75rem;
+				height: 1.75rem;
+				border-radius: 1rem;
+			}
+
+			.body {
+				flex: 1 1 auto;
+				width: 0;
+				padding-left: 0.25rem;
+				position: relative;
+			}
+
+			.name {
+				margin-bottom: 0.125rem;
+				font-size: 0.9375rem;
+				font-weight: 400;
+				color: var(--fg-strong);
+				display: flex;
+				align-items: center;
+				gap: 0.25rem;
+			}
+
+			/* markdown-prose: !text-[0.9375rem] leading-relaxed */
+			.prose {
+				font-size: 0.9375rem;
+				line-height: 1.625;
+				font-weight: 400;
+			}
+
+			.prose p {
+				margin: 0 0 0.5rem;
+			}
+
+			.prose p:last-child {
+				margin-bottom: 0;
+			}
+
+			.prose ol,
+			.prose ul {
+				margin: 0.5rem 0;
+				padding-left: 1.625em; /* typography plugin default */
+			}
+
+			.prose li {
+				margin: 0.125rem 0;
+			}
+
+			/* GFM task items: the checkbox replaces the marker. DELIBERATE DEVIATION
+			   from Open WebUI, which leaves the bullet in place next to the checkbox
+			   (MarkdownTokens.svelte:328-334); every other GFM renderer hides it and
+			   a bullet beside a checkbox reads as unfinished. */
+			.prose li:has(> input[type='checkbox']) {
+				list-style: none;
+				margin-left: -1.375em;
+			}
+
+			.prose li > input[type='checkbox'] {
+				margin-right: 0.5em;
+				transform: translateY(1px);
+				accent-color: var(--fg-strong);
+			}
+
+			/* app.css:386-390 .codespan — INLINE code only. Code inside <pre> is
+			   coloured by the github-dark hljs theme and must not inherit this. */
+			.prose :not(pre) > code {
+				font-family: var(--font-mono);
+				font-size: 0.85em;
+				padding: 0.15rem 0.3rem;
+				margin: 0 0.125rem;
+				border-radius: 0.375rem;
+				background: var(--code-bg);
+				color: var(--code-fg);
+			}
+
+			/* CodeBlock.svelte:559 `hljs p-4 px-5 overflow-x-auto`, rounded-2xl
+			   container. github-dark applies in both themes, as in Open WebUI. */
+			.prose pre {
+				border-radius: 1rem;
+				border: 1px solid color-mix(in oklch, var(--composer-border) 30%, transparent);
+				padding: 1rem 1.25rem;
+				overflow-x: auto;
+				margin: 0.75rem 0;
+			}
+
+			.prose pre code {
+				background: none;
+				color: inherit;
+				padding: 0;
+				margin: 0;
+				border-radius: 0;
+				font-size: 0.875rem;
+				white-space: pre;
+			}
+
+			/* prose-table:my-0 + typography defaults; display:block keeps a wide
+			   table inside its own scroller instead of widening the page */
+			/* MarkdownTokens.svelte:220-222 wraps the table in the scroller rather
+			   than making the table itself the scroller, so columns size to content
+			   instead of collapsing and breaking words mid-syllable */
+			.prose table {
+				border-collapse: collapse;
+				margin: 0;
+				font-size: 0.8571em;
+				line-height: 1.5;
+				display: block;
+				width: max-content;
+				max-width: 100%;
+				overflow-x: auto;
+			}
+
+			.prose th,
+			.prose td {
+				border: 0;
+				border-bottom: 1px solid var(--rule);
+				padding: 0.6667em 1em;
+				text-align: left;
+				/* app.css:20 sets a global break-word; MarkdownTokens.svelte:231
+				   turns it off inside tables */
+				/* `anywhere` would let min-content collapse to one character, which is
+				   what was hyphenating headers mid-syllable; `break-word` does not
+				   affect intrinsic sizing, so columns size to their longest word */
+				word-break: normal;
+				overflow-wrap: break-word;
+			}
+
+			/* MarkdownTokens.svelte:225 text-xs uppercase text-gray-700 dark:text-gray-400 */
+			.prose thead th {
+				font-size: 0.75rem;
+				font-weight: 600;
+				text-transform: uppercase;
+				color: var(--actions-alt);
+			}
+
+			.prose strong {
+				font-weight: 500;
+			}
+
+			/* markdown-prose: prose-headings:mt-2 mb-1 font-medium leading-snug,
+			   h1:text-xl h2:text-lg h3:text-base */
+			.prose h1,
+			.prose h2,
+			.prose h3 {
+				margin: 0.5rem 0 0.25rem;
+				font-weight: 500;
+				line-height: 1.375;
+			}
+
+			.prose h1 {
+				font-size: 1.25rem;
+			}
+
+			.prose h2 {
+				font-size: 1.125rem;
+			}
+
+			.prose h3 {
+				font-size: 1rem;
+			}
+
+			/* prose-blockquote:my-3 font-normal */
+			.prose blockquote {
+				margin: 0.75rem 0;
+				padding-left: 1.1111em;
+				border-left: 0.25rem solid var(--rule);
+				font-style: italic;
+				font-weight: 400;
+			}
+
+			/* prose-hr:my-4 border-gray-50 dark:border-gray-850/30 */
+			.prose hr {
+				margin: 1rem 0;
+				border: 0;
+				border-top: 1px solid var(--hr);
+			}
+
+			/* app.css .marked a { @apply underline } */
+			.prose a {
+				color: inherit;
+				text-decoration: underline;
+			}
+
+			.prose > :first-child {
+				margin-top: 0;
+			}
+
+			.prose > :last-child {
+				margin-bottom: 0;
+			}
+
+			/* streaming caret — Open WebUI w-[0.125rem] h-3.5 animate-pulse */
+			.caret {
+				display: inline-block;
+				width: 0.125rem;
+				height: 0.875rem;
+				margin-left: 0.125rem;
+				background: var(--caret);
+				vertical-align: text-bottom;
+				animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+			}
+
+			@keyframes pulse {
+				50% {
+					opacity: 0.5;
+				}
+			}
+
+			.actions {
+				display: flex;
+				align-items: center;
+				margin-top: 0.125rem;
+				color: var(--actions);
+			}
+
+			.act {
+				display: flex;
+				align-items: center;
+				gap: 0.25rem;
+				padding: 0.25rem;
+				border: 0;
+				background: transparent;
+				border-radius: 0.375rem;
+				color: inherit;
+				font-size: 0.6875rem;
+				transition: background 0.15s;
+			}
+
+			.act:hover {
+				background: var(--hover);
+				color: var(--fg-strong);
+			}
+
+			.act svg {
+				width: 0.875rem;
+				height: 0.875rem;
+			}
+
+			.stat {
+				margin-left: 0.25rem;
+				font-size: 0.6875rem;
+				font-variant-numeric: tabular-nums;
+				color: var(--stat);
+				user-select: none;
+			}
+
+			/* Error.svelte:38-45 */
+			.err {
+				display: flex;
+				align-items: flex-start;
+				gap: 0.5rem;
+				margin: 0.375rem 0;
+				padding: 0.5rem 0.75rem;
+				border-radius: 1rem;
+				background: var(--err-bg);
+				font-size: 0.8125rem;
+				line-height: 1.25rem;
+				color: var(--muted);
+			}
+
+			.err svg {
+				flex: none;
+				margin-top: 0.125rem;
+				color: var(--stat);
+			}
+
+			/* ── placeholder ──────────────────────────────────────── */
+			/* Placeholder.svelte:97 m-auto max-w-[58rem] translate-y-6 py-24 text-center */
+			#placeholder {
+				margin: auto;
+				width: 100%;
+				max-width: min(52rem, 100vw - 620px);
+				padding: 6rem 0.25rem;
+				text-align: center;
+			}
+
+			/* Placeholder.svelte:231 text-base font-normal max-w-3xl w-full py-3 */
+			#ph-composer {
+				width: 100%;
+				max-width: 48rem;
+				margin: 0 auto;
+				padding: 0.75rem 0;
+				font-size: 1rem;
+				font-weight: 400;
+			}
+
+			/* Suggestions.svelte */
+			/* Placeholder.svelte:280 max-w-2xl, :281 mx-5 */
+			.sugg-label {
+				display: flex;
+				align-items: center;
+				gap: 0.25rem;
+				justify-content: flex-start;
+				margin: 0.5rem auto 0.25rem; /* Placeholder.svelte:280 mt-2 */
+				max-width: 42rem;
+				padding: 0 1.25rem;
+				font-size: 0.75rem;
+				color: var(--actions-alt);
+			}
+
+			.sugg-label svg {
+				width: 0.75rem; /* Bolt.svelte size-3 */
+				height: 0.75rem;
+			}
+
+			.sugg-list {
+				height: 9rem; /* Suggestions.svelte:87 h-36 — reserved so it cannot reflow */
+				max-width: 42rem;
+				margin: 0 auto;
+				padding: 0 1.25rem;
+				display: flex;
+				flex-direction: column;
+			}
+
+			/* Suggestions.svelte:95 px-2.5 py-1.5 rounded-lg, no hover background —
+			   the title colour change is the hover affordance */
+			.sugg {
+				display: flex;
+				flex-direction: column;
+				text-align: left;
+				border: 0;
+				background: transparent;
+				border-radius: 0.5rem;
+				padding: 0.375rem 0.625rem;
+				line-height: 1.375;
+			}
+
+			/* Suggestions.svelte:103 text-sm font-normal */
+			.sugg b {
+				font-size: 0.875rem;
+				font-weight: 400;
+				color: var(--sugg-title);
+				transition: color 0.15s;
+			}
+
+			.sugg:hover b {
+				color: var(--sugg-title-hover);
+			}
+
+			/* Suggestions.svelte:108 text-xs text-gray-600 dark:text-gray-400 */
+			.sugg i {
+				font-size: 0.75rem;
+				font-style: normal;
+				color: var(--actions-alt);
+			}
+
+			/* ── composer ─────────────────────────────────────────────
+			   Open WebUI: shadow-lg rounded-3xl border px-0.5 backdrop-blur-sm */
+			#bottom {
+				flex: none;
+				width: 100%;
+				max-width: min(52rem, 100vw - 620px); /* 832px: clears the 288px legend gutter at 1440 */
+				margin: 0 auto;
+				padding: 0 0.75rem 0.75rem;
+			}
+
+			#bottom:empty {
+				display: none;
+			}
+
+			.composer-wrap {
+				width: 100%;
+				max-width: min(52rem, 100vw - 620px); /* 832px: clears the 288px legend gutter at 1440 */
+				margin: 0 auto;
+				padding: 0 0.5rem; /* MessageInput.svelte:1678 px-2 */
+			}
+
+			.composer {
+				display: flex;
+				flex-direction: column;
+				position: relative;
+				width: 100%;
+				border-radius: 1.5rem;
+				border: 1px solid color-mix(in oklch, var(--composer-border) 30%, transparent);
+				padding: 0 0.125rem;
+				background: var(--composer-bg);
+				backdrop-filter: blur(8px); /* v4 --blur-sm is 8px, not 4px */
+				box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+				transition: border-color 0.15s;
+			}
+
+			.composer:hover {
+				border-color: var(--composer-hover);
+			}
+
+			.composer:focus-within {
+				border-color: var(--composer-focus);
+			}
+
+			.composer-inner {
+				padding: 0 0.5rem; /* MessageInput.svelte:1989 px-2 */
+				display: flex;
+				flex-direction: column;
+				width: 100%;
+			}
+
+			#input {
+				width: 100%;
+				border: 0;
+				outline: none;
+				resize: none;
+				background: transparent;
+				color: var(--fg);
+				font-family: inherit;
+				font-size: 1rem;
+				line-height: 1.5;
+				padding: 0.5rem 0.25rem 0.125rem; /* pt-2 px-1 pb-0.5 */
+				max-height: 24rem;
+				overflow: auto;
+			}
+
+			#input::placeholder {
+				color: var(--gray-400);
+			}
+
+			.composer-bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 0.125rem 0.125rem 0.5rem; /* mt-0.5 mx-0.5 mb-2 */
+			}
+
+			/* MessageInput.svelte:2530 model selector trigger:
+			   gap-1.5 rounded-lg pl-2 pr-1.5 py-1 text-[0.8125rem] font-normal
+			   text-gray-600 hover:bg-gray-50/40 dark:text-gray-300 */
+			.model-chip {
+				cursor: default;
+				display: flex;
+				align-items: center;
+				gap: 0.375rem;
+				border: 0;
+				background: transparent;
+				border-radius: 0.5rem;
+				padding: 0.25rem 0.375rem 0.25rem 0.5rem;
+				font-size: 0.8125rem;
+				font-weight: 400;
+				color: var(--chip-fg);
+				max-width: 10rem;
+				transition: background 0.1s, color 0.1s;
+			}
+
+			.model-chip:hover {
+				background: var(--hover-soft);
+				color: var(--hover-fg);
+			}
+
+			@media (min-width: 640px) {
+				.model-chip {
+					max-width: 13rem; /* MessageInput.svelte:2529 sm:max-w-[13rem] */
+				}
+			}
+
+			.model-chip span {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.model-chip .mark {
+				width: 1rem;
+				height: 1rem;
+				border-radius: 0.375rem;
+			}
+
+			#send {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border: 0;
+				border-radius: 9999px;
+				padding: 0.3125rem;
+				background: var(--send-bg);
+				color: var(--send-fg);
+				transition: background 0.15s, opacity 0.15s;
+			}
+
+			#send:hover:not(:disabled) {
+				background: var(--send-bg-hover);
+			}
+
+			#send:disabled {
+				background: var(--send-off-bg);
+				color: var(--send-off-fg);
+				cursor: default;
+			}
+
+			#send svg {
+				width: 1.25rem;
+				height: 1.25rem;
+			}
+
+			/* ── floating panel (PiP) ─────────────────────────────────
+			   Styled after Open WebUI DropdownMenu: rounded-xl border
+			   bg-white dark:bg-gray-850 shadow-lg. Floats over the chat. */
+			#hud {
+				position: fixed;
+				top: 0.5rem;
+				right: 0.75rem;
+				z-index: 40;
+				width: 18rem; /* fixed: expanding changes height only */
+			}
+
+			#hud summary {
+				list-style: none;
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				height: 1.875rem;
+				padding: 0 0.5rem 0 0.625rem;
+				border-radius: 9999px;
+				border: 1px solid var(--panel-border);
+				background: var(--panel);
+				box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 16px -4px rgb(0 0 0 / 0.12);
+				font-size: 0.8125rem;
+				color: var(--fg);
+				user-select: none;
+				transition: box-shadow 0.15s, background 0.15s;
+			}
+
+			#hud summary::-webkit-details-marker {
+				display: none;
+			}
+
+			#hud summary:hover {
+				box-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.12);
+			}
+
+			#hud[open] summary {
+				border-radius: 0.75rem 0.75rem 0 0;
+				border-bottom-color: transparent;
+				box-shadow: none;
+			}
+
+			.dot {
+				width: 0.4375rem;
+				height: 0.4375rem;
+				border-radius: 9999px;
+				background: var(--ok);
+				flex: none;
+			}
+
+			.dot.bad {
+				background: var(--bad);
+			}
+
+			#hud .site {
+				font-weight: 500;
+				font-variant-numeric: tabular-nums;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			#hud .sub {
+				margin-left: auto;
+				font-variant-numeric: tabular-nums;
+				color: var(--muted);
+			}
+
+			#hud .sub.bad {
+				color: var(--bad);
+			}
+
+			#hud .chev {
+				margin-left: 0.5rem; /* .sub takes the auto; arrow stays flush right */
+				width: 0.75rem;
+				height: 0.75rem;
+				color: var(--gray-400);
+				transition: transform 0.15s;
+			}
+
+			#hud[open] .chev {
+				transform: rotate(180deg);
+			}
+
+			.panel {
+				width: 100%;
+				border: 1px solid var(--panel-border);
+				border-top: 0;
+				border-radius: 0 0 0.75rem 0.75rem;
+				background: var(--panel);
+				box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+				overflow: hidden;
+			}
+
+			.sec {
+				padding: 0.625rem 0.6875rem;
+			}
+
+			.sec + .sec {
+				border-top: 1px solid var(--panel-border);
+			}
+
+			.sec h3 {
+				margin: 0 0 0.4375rem;
+				font-size: 0.6875rem;
+				font-weight: 500;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				color: var(--muted);
+			}
+
+			.kv {
+				display: grid;
+				grid-template-columns: 5.25rem 1fr;
+				gap: 0.1875rem 0.5rem;
+				font-size: 0.75rem;
+			}
+
+			.kv dt {
+				color: var(--muted);
+			}
+
+			.kv dd {
+				margin: 0;
+				font-family: var(--font-mono);
+				font-variant-numeric: tabular-nums;
+				color: var(--fg);
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.kv dd.big {
+				font-family: var(--font-sans);
+				font-weight: 500;
+				font-size: 0.8125rem;
+			}
+
+			.kv dd.onprem {
+				color: var(--onprem);
+			}
+
+			.kv dd.cloud {
+				color: var(--cloud);
+			}
+
+			.kv dd.bad {
+				color: var(--bad);
+			}
+
+			#log {
+				margin: 0;
+				padding: 0;
+				list-style: none;
+				display: flex;
+				flex-direction: column;
+				gap: 0.4375rem;
+				max-height: 8.5rem;
+				overflow-y: auto;
+				font-size: 0.75rem;
+			}
+
+			#log li {
+				display: flex;
+				gap: 0.5rem;
+				line-height: 1.45;
+			}
+
+			#log li > div {
+				min-width: 0;
+			}
+
+			#log time {
+				font-family: var(--font-mono);
+				color: var(--gray-400);
+				flex: none;
+			}
+
+			#log .what {
+				color: var(--fg);
+			}
+
+			#log .lost {
+				color: var(--bad);
+			}
+
+			#log .empty {
+				color: var(--muted);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app">
+			<nav class="navbar">
+				<div class="navbar-actions">
+					<button class="icon-btn" id="new-chat" aria-label="New Chat">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+							<path stroke-linecap="round" d="M12 5v14M5 12h14" />
+						</svg>
+					</button>
+					<button class="icon-btn" id="theme" aria-label="Toggle theme">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+						</svg>
+					</button>
+				</div>
+			</nav>
+
+			<div id="scroll">
+				<div id="placeholder">
+					<div id="ph-composer"></div>
+					<div class="sugg-label">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+							<path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+						</svg>
+						Suggested
+					</div>
+					<div class="sugg-list">
+						<button class="sugg" data-p="Explain what a hybrid cloud is in two sentences.">
+							<b>Explain hybrid cloud</b><i>in two sentences</i>
+						</button>
+						<!-- Deliberately no networking-trivia prompts. The chat is the prop;
+						     a 1b model is unreliable on protocol detail and this audience
+						     grades it. These two set up the state-loss beat instead. -->
+						<button class="sugg" data-p="Remember this for later: the maintenance window is Tuesday 0200 UTC.">
+							<b>Set a maintenance window</b><i>then ask for it again after the move</i>
+						</button>
+						<button class="sugg" data-p="Reply with only a markdown task list using - [ ] checkboxes, one line each, for: chat, move the app, cut the model link, restore it. No other text.">
+							<b>Rehearsal checklist</b><i>as a task list</i>
+						</button>
+					</div>
+				</div>
+				<div id="messages"></div>
+			</div>
+
+			<div id="bottom"></div>
+		</div>
+
+		<details id="hud">
+			<summary>
+				<span class="dot" id="hud-dot"></span>
+				<span class="site" id="hud-site" aria-live="polite">connecting…</span>
+				<span class="sub" id="hud-sub"></span>
+				<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+				</svg>
+			</summary>
+			<div class="panel">
+				<div class="sec">
+					<h3>Running on</h3>
+					<dl class="kv">
+						<dt>site</dt><dd class="big" id="f-site">—</dd>
+						<dt>platform</dt><dd id="f-platform">—</dd>
+						<dt>region</dt><dd id="f-region">—</dd>
+						<dt>node</dt><dd id="f-node">—</dd>
+						<dt>pod</dt><dd id="f-pod">—</dd>
+						<dt>pod ip</dt><dd id="f-podip">—</dd>
+						<dt>instance</dt><dd id="f-instance">—</dd>
+						<dt>uptime</dt><dd id="f-uptime">—</dd>
+					</dl>
+				</div>
+				<div class="sec">
+					<h3>Model link</h3>
+					<dl class="kv">
+						<dt>model</dt><dd id="f-model">—</dd>
+						<dt>serving from</dt><dd id="f-mhost">—</dd>
+						<dt>resolved</dt><dd id="f-mip">—</dd>
+						<dt>round trip</dt><dd id="f-rtt">—</dd>
+						<dt>first token</dt><dd id="f-ttft">—</dd>
+						<dt>throughput</dt><dd id="f-tps">—</dd>
+					</dl>
+				</div>
+				<div class="sec">
+					<h3>Activity</h3>
+					<ul id="log" aria-live="polite">
+						<li class="empty">watching…</li>
+					</ul>
+				</div>
+			</div>
+		</details>
+
+		<!-- the composer is moved between #ph-composer (empty state) and #bottom -->
+		<div class="composer-wrap" id="composer-wrap">
+			<div class="composer">
+				<div class="composer-inner">
+					<textarea id="input" rows="1" aria-label="Message" placeholder="How can I help you today?"></textarea>
+					<div class="composer-bar">
+						<div class="model-chip" aria-hidden="true">
+							<span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg></span>
+							<span id="chip-name">—</span>
+						</div>
+						<button id="send" disabled aria-label="Send message">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<path fill-rule="evenodd" d="M12 2.25a.75.75 0 0 1 .75.75v16.19l6.22-6.22a.75.75 0 1 1 1.06 1.06l-7.5 7.5a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 1 1 1.06-1.06l6.22 6.22V3a.75.75 0 0 1 .75-.75Z" transform="rotate(180 12 12)" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			const $ = (id) => document.getElementById(id);
+			const MARK =
+				'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>';
+
+			/* ── markdown: marked + DOMPurify + highlight.js, as Open WebUI does ── */
+			marked.setOptions({ gfm: true, breaks: true });
+			const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			const md = (src) =>
+				DOMPurify.sanitize(marked.parse(src ?? ''), {
+					// model output must not shadow the app's own ids: #messages precedes
+					// #input and #f-site in the DOM, so a <span id="input"> kills the
+					// composer and a <span id="f-site"> freezes the legend on a stale site
+					SANITIZE_NAMED_PROPS: true,
+					// without this a reply can paint a pixel-exact fake legend over the real one
+					FORBID_ATTR: ['style'],
+					// 'input' is deliberately absent: forbidding it silently breaks the GFM
+					// task lists that gfm:true asks for. ADD_ATTR is absent too — 'target'
+					// is not default-allowed, and admitting it re-enables reverse tabnabbing
+					FORBID_TAGS: ['form', 'button', 'select', 'textarea']
+				});
+
+			// CodeBlock.svelte:559 puts `hljs` on the <pre>; marked emits language-* on <code>
+			function highlight(root) {
+				root.querySelectorAll('pre code').forEach((code) => {
+					const lang = (code.className.match(/language-([\w-]+)/) || [])[1];
+					if (lang && hljs.getLanguage(lang)) {
+						code.innerHTML = hljs.highlight(code.textContent, {
+							language: lang,
+							ignoreIllegals: true
+						}).value;
+					}
+					code.parentElement.classList.add('hljs');
+				});
+			}
+
+			/* ── theme ─────────────────────────────────────────────── */
+			$('theme').onclick = () => {
+				const sysDark = matchMedia('(prefers-color-scheme: dark)').matches;
+				const cur = document.documentElement.dataset.theme || (sysDark ? 'dark' : 'light');
+				document.documentElement.dataset.theme = cur === 'dark' ? 'light' : 'dark';
+			};
+
+			/* ── session ───────────────────────────────────────────── */
+			const messages = $('messages');
+			// crypto.randomUUID is secure-context only; this demo is reached
+			// over plain http by IP, where it is undefined
+			const uuid = () =>
+				crypto.randomUUID?.() ??
+				Date.now().toString(36) + Math.random().toString(36).slice(2);
+			let SESSION = uuid();
+
+			function newChat() {
+				ctrl?.abort();
+				SESSION = uuid();
+				messages.innerHTML = '';
+				placeComposer();
+				$('input').focus();
+			}
+			$('new-chat').onclick = newChat;
+
+			/* ── the composer lives in the placeholder until a message exists ── */
+			function placeComposer() {
+				const empty = messages.children.length === 0;
+				$('placeholder').hidden = !empty;
+				(empty ? $('ph-composer') : $('bottom')).append($('composer-wrap'));
+			}
+
+			/* ── message rendering ─────────────────────────────────── */
+			function addUser(text) {
+				const el = document.createElement('div');
+				el.className = 'msg user';
+				el.innerHTML = '<div class="row"><div class="bubble"><div class="prose"></div></div></div>';
+				el.querySelector('.prose').textContent = text;
+				messages.append(el);
+				placeComposer();
+				scrollDown();
+			}
+
+			function addAssistant() {
+				const el = document.createElement('div');
+				el.className = 'msg assistant';
+				el.innerHTML =
+					'<div class="row">' +
+					`<span class="avatar mark" aria-hidden="true">${MARK}</span>` +
+					'<div class="body"><div class="name"></div>' +
+					'<div class="prose"><span class="caret"></span></div>' +
+					'<div class="actions"></div></div></div>';
+				el.querySelector('.name').textContent = state.model || 'assistant';
+				messages.append(el);
+				scrollDown();
+				return el;
+			}
+
+			function scrollDown() {
+				const s = $('scroll');
+				s.scrollTop = s.scrollHeight;
+			}
+
+			/* ── chat: POST, then read the SSE stream with fetch ───── */
+			let busy = false;
+			let ctrl = null;
+
+			async function send() {
+				const text = $('input').value.trim();
+				if (!text || busy) return;
+				busy = true;
+				$('input').value = '';
+				$('input').style.height = 'auto';
+				$('send').disabled = true;
+				addUser(text);
+
+				const el = addAssistant();
+				const prose = el.querySelector('.prose');
+				let acc = '';
+				let ended = false;
+
+				ctrl?.abort();
+				ctrl = new AbortController();
+
+				try {
+					const r = await fetch('/chat', {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({ session: SESSION, message: text }),
+						signal: ctrl.signal
+					});
+					if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+					const reader = r.body.getReader();
+					const dec = new TextDecoder();
+					let buf = '';
+
+					while (true) {
+						const { value, done } = await reader.read();
+						if (done) break;
+						buf += dec.decode(value, { stream: true });
+
+						// frames end at a blank line; keep any partial tail for next read
+						const parts = buf.split('\n\n');
+						buf = parts.pop();
+
+						for (const part of parts) {
+							if (!part.startsWith('data: ')) continue;
+							const frame = JSON.parse(part.slice(6));
+
+							// the terminal frame must be tested FIRST: /whereami's link
+							// error rides along inside it and would otherwise be read as
+							// a chat failure, wiping a perfectly good answer
+							if (frame.done) {
+								ended = true;
+								prose.innerHTML = md(acc);
+								highlight(prose);
+								const bits = [];
+								if (frame.ttft_ms != null) bits.push(`${frame.ttft_ms} ms to first token`);
+								if (frame.tok_per_s != null) bits.push(`${frame.tok_per_s} tok/s`);
+								el.querySelector('.actions').innerHTML =
+									'<button class="act" title="Copy" aria-label="Copy">' +
+									'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' +
+									'<path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"/></svg>' +
+									`</button><span class="stat">${bits.join(' · ')}</span>`;
+								el.querySelector('.act').onclick = () =>
+									navigator.clipboard?.writeText(acc).catch(() => {});
+							} else if (frame.error) {
+								ended = true;
+								// keep what streamed in, exactly as the catch below does
+								prose.innerHTML =
+									md(acc) +
+									'<span class="err">' +
+									'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">' +
+									'<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>' +
+									`<span>${esc(frame.error)}${frame.detail ? ` (${esc(frame.detail)})` : ''}</span></span>`;
+							} else if (frame.token !== undefined) {
+								acc += frame.token;
+								prose.innerHTML = md(acc) + '<span class="caret"></span>';
+								scrollDown();
+							}
+						}
+					}
+					if (!ended) {
+						prose.innerHTML = md(acc) + '<span class="err">stream ended early</span>';
+					}
+				} catch (e) {
+					if (e.name !== 'AbortError') {
+						// keep whatever streamed in rather than discarding the answer
+						prose.innerHTML = md(acc) + `<span class="err">${esc(String(e))}</span>`;
+					}
+				} finally {
+					ctrl = null;
+					prose.querySelector('.caret')?.remove();
+					busy = false;
+					$('send').disabled = !$('input').value.trim();
+					$('input').focus();
+				}
+			}
+
+			$('send').onclick = send;
+			$('input').addEventListener('input', (e) => {
+				$('hud').open = false;
+				$('send').disabled = !e.target.value.trim() || busy;
+				e.target.style.height = 'auto';
+				e.target.style.height = Math.min(e.target.scrollHeight, 384) + 'px';
+			});
+			$('input').addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' && !e.shiftKey) {
+					e.preventDefault();
+					send();
+				}
+			});
+			document.querySelectorAll('.sugg').forEach((b) => {
+				b.onclick = () => {
+					$('input').value = b.dataset.p;
+					$('input').dispatchEvent(new Event('input'));
+					send();
+				};
+			});
+
+			/* ── the panel: poll /whereami and detect a move ────────── */
+			let polling = false;
+			const state = { instance: null, site: null, model: null, lastOk: null, down: false };
+
+			const fmtUptime = (s) => {
+				if (s == null) return '—';
+				if (s < 60) return `${Math.floor(s)}s`;
+				const m = Math.floor(s / 60);
+				return m < 60 ? `${m}m ${Math.floor(s % 60)}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
+			};
+
+			function logRow(what, sub) {
+				const ul = $('log');
+				ul.querySelector('.empty')?.remove();
+				const li = document.createElement('li');
+				const t = new Date().toTimeString().slice(0, 8);
+				li.innerHTML = `<time>${t}</time><div><span class="what"></span></div>`;
+				li.querySelector('.what').textContent = what;
+				if (sub) {
+					const d = document.createElement('div');
+					d.className = 'lost';
+					d.textContent = sub;
+					li.querySelector('div').append(d);
+				}
+				ul.prepend(li);
+			}
+
+			function paint(d) {
+				const cloud = (d.platform || '').includes('cloud');
+				$('hud-site').textContent = d.site;
+				$('hud-dot').className = 'dot' + (d.link.error ? ' bad' : '');
+				$('hud-sub').textContent = d.link.error
+					? 'link down'
+					: d.link.rtt_ms != null
+						? `${d.link.rtt_ms} ms`
+						: '';
+				$('hud-sub').className = 'sub' + (d.link.error ? ' bad' : '');
+				$('chip-name').textContent = d.model;
+
+				$('f-site').textContent = d.site;
+				$('f-site').className = 'big ' + (cloud ? 'cloud' : 'onprem');
+				$('f-platform').textContent = d.platform;
+				$('f-region').textContent = d.region;
+				$('f-node').textContent = d.node;
+				$('f-pod').textContent = d.pod;
+				$('f-podip').textContent = d.pod_ip;
+				$('f-instance').textContent = d.instance_id;
+				$('f-uptime').textContent = fmtUptime(d.uptime_s);
+
+				$('f-model').textContent = d.model;
+				let host = d.model_url;
+				try {
+					host = new URL(d.model_url).host;
+				} catch {
+					/* OLLAMA_URL with no scheme: show it raw rather than throw */
+				}
+				$('f-mhost').textContent = host;
+				$('f-mip').textContent = d.link.model_ip || '—';
+				$('f-rtt').textContent = d.link.error
+					? d.link.error
+					: d.link.rtt_ms != null
+						? `${d.link.rtt_ms} ms`
+						: '—';
+				$('f-rtt').className = d.link.error ? 'bad' : '';
+				$('f-ttft').textContent = d.link.ttft_ms != null ? `${d.link.ttft_ms} ms` : '—';
+				$('f-tps').textContent = d.link.tok_per_s != null ? `${d.link.tok_per_s} tok/s` : '—';
+			}
+
+			async function poll() {
+				// setInterval does not wait for the previous call; overlapping polls
+				// could log a phantom reverse move and clear the transcript twice
+				if (polling) return;
+				polling = true;
+
+				let d;
+				try {
+					// a blackholed link never refuses, so without a deadline this await
+					// never settles, the `polling` guard sticks true, and the legend
+					// keeps showing a green dot and a stale rtt indefinitely
+					const r = await fetch('/whereami', {
+						cache: 'no-store',
+						signal: AbortSignal.timeout(2500)
+					});
+					if (!r.ok) throw new Error('HTTP ' + r.status);
+					d = await r.json();
+					if (!d.instance_id) throw new Error('no instance_id');
+				} catch {
+					if (!state.down) {
+						state.down = true;
+						ctrl?.abort(); // an in-flight chat to a gone app will never settle
+						$('hud-dot').className = 'dot bad';
+						$('hud-site').textContent = 'reconnecting…';
+						logRow(state.instance ? 'lost contact with the app' : 'app not reachable');
+					}
+					polling = false;
+					return;
+				}
+
+				// below here is our own code — a throw must not be misreported
+				// as the app being unreachable
+				try {
+					if (state.instance && d.instance_id !== state.instance) {
+						// a different process is answering: the app moved or restarted.
+						// its own uptime dates its start, so subtracting it removes the
+						// poll interval we would otherwise count as downtime
+						const seen = (Date.now() - state.lastOk) / 1000;
+						const gap = Math.max(0, seen - (d.uptime_s ?? 0)).toFixed(1);
+						const lost = messages.children.length;
+						ctrl?.abort();
+						logRow(
+							`${state.site} → ${d.site} · outage ${gap}s`,
+							lost ? `conversation lost: ${lost} messages` : null
+						);
+						if (lost) {
+							messages.innerHTML = '';
+							placeComposer();
+						}
+					} else if (state.down) {
+						logRow(state.instance ? 'reconnected · same process' : 'connected');
+					}
+
+					state.instance = d.instance_id;
+					state.site = d.site;
+					state.model = d.model;
+					state.lastOk = Date.now();
+					state.down = false;
+					paint(d);
+				} finally {
+					polling = false;
+				}
+			}
+
+			placeComposer();
+			poll();
+			setInterval(poll, 1000);
+		</script>
+	</body>
+</html>

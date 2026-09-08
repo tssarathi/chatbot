@@ -5,10 +5,12 @@ import socket
 import time
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 
@@ -25,6 +27,8 @@ LOCAL_IP = _local_ip()
 
 OLLAMA_URL = os.getenv("OLLAMA_URL") or "http://localhost:11434"
 MODEL_NAME = os.getenv("MODEL_NAME") or "granite3.1-moe:1b"
+STATIC = Path(__file__).parent / "static"
+INDEX = STATIC / "index.html"
 
 SESSIONS: dict[str, list[dict[str, str]]] = {}
 LINK: dict[str, float | str | None] = {
@@ -67,11 +71,19 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
 class Ask(BaseModel):
     session: str
     message: str
+
+
+@app.get("/")
+def index():
+    # no-cache, not no-store: revalidate every load. Without this the browser
+    # heuristically caches index.html and can serve a stale page after a move.
+    return FileResponse(INDEX, headers={"cache-control": "no-cache"})
 
 
 @app.get("/whereami")
