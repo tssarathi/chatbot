@@ -1,0 +1,13 @@
+Vendored browser builds. Versions match open-webui's package.json pins.
+
+marked        9.1.6   (npm, marked.min.js — UMD)          open-webui pins ^9.1.0
+dompurify     3.4.14  (npm, dist/purify.min.js)           open-webui pins ^3.2.6
+highlight.js  11.12.0 (npm es/common.js, bundled to IIFE  open-webui pins ^11.9.0
+                       with esbuild 0.25: core + common languages)
+github-dark.min.css   (highlight.js 11.12.0 styles/)      the theme open-webui imports
+
+Rebuild highlight.min.js:
+  npm pack highlight.js@11.12.0 && tar xzf highlight.js-11.12.0.tgz
+  echo "import hljs from './package/es/common.js'; export default hljs;" > entry.js
+  npx esbuild entry.js --bundle --minify --format=iife --global-name=hljs \
+    --footer:js='window.hljs=hljs.default||hljs;' --outfile=highlight.min.js
