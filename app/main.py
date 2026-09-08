@@ -112,13 +112,17 @@ def _rate(frame: dict) -> float | None:
     return round(n / (ns / 1e9), 1) if n and ns else None
 
 
-async def _stream(history: list[dict[str, str]]):
+async def _stream(history: list[dict[str, str]], message: str):
     words: list[str] = []
     t0 = time.monotonic()
     # per-request, NOT in LINK: two concurrent chats would otherwise report each
     # other's timings, both in the receipt and on the panel
     ttft_ms: int | None = None
     tok_per_s: float | None = None
+
+    turn = {"role": "user", "content": message}
+    history.append(turn)
+    completed = False
     try:
         # connect must fail fast: a dropped link (pulled cable, iptables DROP,
         # docker network disconnect) never refuses, so a single 120s budget would
@@ -136,6 +140,7 @@ async def _stream(history: list[dict[str, str]]):
                     frame = json.loads(line)
                     if frame.get("done"):
                         tok_per_s = _rate(frame)
+                        completed = True
                         break
                     if not words:
                         ttft_ms = round((time.monotonic() - t0) * 1000)
@@ -145,13 +150,26 @@ async def _stream(history: list[dict[str, str]]):
         detail = exc.__class__.__name__
         yield f"data: {json.dumps({'error': 'model unreachable', 'detail': detail})}\n\n"
         return
+    finally:
+        # A turn is atomic: both halves land, or neither does. Without this, an
+        # abnormal end — upstream error, client disconnect, a move mid-stream —
+        # strands the user turn and the NEXT question gets answered with the answer
+        # to the abandoned one. Storing the partial reply instead is truthful but
+        # worse: the model then finishes the truncated thought rather than
+        # answering what was actually asked.
+        if completed:
+            history.append({"role": "assistant", "content": "".join(words)})
+        else:
+            for i in range(len(history) - 1, -1, -1):
+                if history[i] is turn:  # identity, not equality: same text may repeat
+                    del history[i]
+                    break
 
     # publish for the panel's "last measured" rows, then report this request's
     # own figures in its own receipt
     LINK["ttft_ms"] = ttft_ms
     LINK["tok_per_s"] = tok_per_s
 
-    history.append({"role": "assistant", "content": "".join(words)})
     receipt = {
         "done": True,
         "turns": len(history),
@@ -166,5 +184,4 @@ async def _stream(history: list[dict[str, str]]):
 @app.post("/chat")
 async def chat(ask: Ask):
     history = SESSIONS.setdefault(ask.session, [])
-    history.append({"role": "user", "content": ask.message})
-    return StreamingResponse(_stream(history), media_type="text/event-stream")
+    return StreamingResponse(_stream(history, ask.message), media_type="text/event-stream")
