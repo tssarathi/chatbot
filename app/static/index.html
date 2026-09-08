@@ -9,7 +9,7 @@
 		<script src="/static/vendor/purify.min.js"></script>
 		<script src="/static/vendor/highlight.min.js"></script>
 		<style>
-			/* Colour ramp copied from Open WebUI src/tailwind.css @theme (zero chroma). */
+
 			:root {
 				--gray-50: oklch(0.98 0 0);
 				--gray-100: oklch(0.94 0 0);
@@ -31,13 +31,13 @@
 				--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 					'Liberation Mono', 'Courier New', monospace;
 
-				/* semantic, light */
+
 				--bg: #ffffff;
 				--fg: var(--gray-700);
 				--fg-strong: #000000;
 				--bubble: var(--gray-50);
 				--border: var(--gray-100);
-				--muted: var(--gray-600);     /* raised from OWUI's gray-500: 2.78:1 on white */
+				--muted: var(--gray-600);     
 				--panel: #ffffff;
 				--panel-border: var(--gray-200);
 				--hover: rgb(0 0 0 / 0.05);
@@ -50,11 +50,11 @@
 				--cloud: oklch(0.55 0.15 250);
 				--ok: oklch(0.65 0.16 150);
 				--bad: oklch(0.62 0.2 25);
-				/* OWUI flips these between themes */
-				--hr: var(--gray-50);          /* prose-hr:border-gray-50 */
-				--composer-hover: var(--gray-200);   /* hover:border-gray-200 */
-				--composer-focus: var(--gray-100);   /* focus-within:border-gray-100 */
-				--composer-border: var(--gray-100);  /* border-gray-100/30 */
+
+				--hr: var(--gray-50);          
+				--composer-hover: var(--gray-200);   
+				--composer-focus: var(--gray-100);   
+				--composer-border: var(--gray-100);  
 				--composer-bg: rgb(255 255 255 / 0.05);
 				--hover-soft: color-mix(in oklch, var(--gray-50) 40%, transparent);
 				--hover-fg: var(--gray-700);
@@ -68,9 +68,9 @@
 				--sugg-title: var(--gray-700);
 				--sugg-title-hover: var(--gray-950);
 				--err-bg: rgb(0 0 0 / 0.03);
-				--caret: var(--gray-400);      /* bg-gray-400 dark:bg-gray-500 */
-				--actions: var(--gray-600);    /* text-gray-600 dark:text-gray-500 */
-				--stat: var(--gray-600);       /* raised from OWUI's gray-400: 2.07:1 on white */
+				--caret: var(--gray-400);      
+				--actions: var(--gray-600);    
+				--stat: var(--gray-600);       
 			}
 
 			@media (prefers-color-scheme: dark) {
@@ -161,7 +161,7 @@
 			*::before,
 			*::after {
 				box-sizing: border-box;
-				border-color: var(--gray-200); /* tailwind.css:35-43 — not theme-flipped */
+				border-color: var(--gray-200); 
 			}
 
 			[hidden] {
@@ -195,16 +195,13 @@
 				font: inherit;
 			}
 
-			/* ── navbar ───────────────────────────────────────────────
-			   Open WebUI: sticky top-0 z-30 w-full pt-0.5 pb-1 -mb-12,
-			   with a gradient underlay fading the messages beneath it. */
+
 			.navbar {
 				position: sticky;
 				top: 0;
 				z-index: 30;
 				width: 100%;
-				/* pt raised from OWUI's pt-0.5 so the icons share the legend's
-				   centreline: this bar has no title to set the height */
+
 				padding: 0.6875rem 0.25rem 0.25rem 0.375rem;
 				margin-bottom: -3rem;
 				display: flex;
@@ -248,7 +245,7 @@
 			}
 
 			.icon-btn:hover {
-				background: var(--hover-soft); /* Navbar.svelte:143 hover:bg-gray-50/40 */
+				background: var(--hover-soft); 
 				color: var(--hover-fg);
 			}
 
@@ -257,8 +254,7 @@
 				height: 1.125rem;
 			}
 
-			/* ── message list ─────────────────────────────────────────
-			   Open WebUI: max-w-[58rem] mx-auto px-3.5 mb-3, pt-18 */
+
 			#scroll {
 				flex: 1;
 				overflow-y: auto;
@@ -273,14 +269,14 @@
 				flex-direction: column;
 				justify-content: space-between;
 				width: 100%;
-				max-width: min(52rem, 100vw - 620px); /* 832px: clears the 288px legend gutter at 1440 */
+				max-width: min(52rem, 100vw - 620px); 
 				margin: 0 auto 0.75rem;
 				padding: 0 0.875rem;
 			}
 
-			/* user: right-aligned bubble, rounded-3xl, max-w-[90%], px-4 py-1.5 */
+
 			#messages:not(:empty) {
-				padding-bottom: 4.5rem; /* Messages.svelte:578 <div class="pb-18" /> */
+				padding-bottom: 4.5rem; 
 			}
 
 			.msg.user .row {
@@ -296,9 +292,9 @@
 				background: var(--bubble);
 			}
 
-			/* assistant: avatar + name + prose, no bubble */
+
 			.msg.assistant {
-				margin-top: 1rem; /* a turn boundary must outweigh a line break */
+				margin-top: 1rem; 
 			}
 
 			.msg.assistant .row {
@@ -306,7 +302,7 @@
 				width: 100%;
 			}
 
-			/* ResponseMessage.svelte:668 size-7 + ProfileImage rounded-2xl */
+
 			.mark {
 				display: inline-flex;
 				align-items: center;
@@ -346,7 +342,7 @@
 				gap: 0.25rem;
 			}
 
-			/* markdown-prose: !text-[0.9375rem] leading-relaxed */
+
 			.prose {
 				font-size: 0.9375rem;
 				line-height: 1.625;
@@ -364,17 +360,14 @@
 			.prose ol,
 			.prose ul {
 				margin: 0.5rem 0;
-				padding-left: 1.625em; /* typography plugin default */
+				padding-left: 1.625em; 
 			}
 
 			.prose li {
 				margin: 0.125rem 0;
 			}
 
-			/* GFM task items: the checkbox replaces the marker. DELIBERATE DEVIATION
-			   from Open WebUI, which leaves the bullet in place next to the checkbox
-			   (MarkdownTokens.svelte:328-334); every other GFM renderer hides it and
-			   a bullet beside a checkbox reads as unfinished. */
+
 			.prose li:has(> input[type='checkbox']) {
 				list-style: none;
 				margin-left: -1.375em;
@@ -386,8 +379,7 @@
 				accent-color: var(--fg-strong);
 			}
 
-			/* app.css:386-390 .codespan — INLINE code only. Code inside <pre> is
-			   coloured by the github-dark hljs theme and must not inherit this. */
+
 			.prose :not(pre) > code {
 				font-family: var(--font-mono);
 				font-size: 0.85em;
@@ -398,8 +390,7 @@
 				color: var(--code-fg);
 			}
 
-			/* CodeBlock.svelte:559 `hljs p-4 px-5 overflow-x-auto`, rounded-2xl
-			   container. github-dark applies in both themes, as in Open WebUI. */
+
 			.prose pre {
 				border-radius: 1rem;
 				border: 1px solid color-mix(in oklch, var(--composer-border) 30%, transparent);
@@ -418,11 +409,7 @@
 				white-space: pre;
 			}
 
-			/* prose-table:my-0 + typography defaults; display:block keeps a wide
-			   table inside its own scroller instead of widening the page */
-			/* MarkdownTokens.svelte:220-222 wraps the table in the scroller rather
-			   than making the table itself the scroller, so columns size to content
-			   instead of collapsing and breaking words mid-syllable */
+
 			.prose table {
 				border-collapse: collapse;
 				margin: 0;
@@ -440,16 +427,13 @@
 				border-bottom: 1px solid var(--rule);
 				padding: 0.6667em 1em;
 				text-align: left;
-				/* app.css:20 sets a global break-word; MarkdownTokens.svelte:231
-				   turns it off inside tables */
-				/* `anywhere` would let min-content collapse to one character, which is
-				   what was hyphenating headers mid-syllable; `break-word` does not
-				   affect intrinsic sizing, so columns size to their longest word */
+
+
 				word-break: normal;
 				overflow-wrap: break-word;
 			}
 
-			/* MarkdownTokens.svelte:225 text-xs uppercase text-gray-700 dark:text-gray-400 */
+
 			.prose thead th {
 				font-size: 0.75rem;
 				font-weight: 600;
@@ -461,8 +445,7 @@
 				font-weight: 500;
 			}
 
-			/* markdown-prose: prose-headings:mt-2 mb-1 font-medium leading-snug,
-			   h1:text-xl h2:text-lg h3:text-base */
+
 			.prose h1,
 			.prose h2,
 			.prose h3 {
@@ -483,7 +466,7 @@
 				font-size: 1rem;
 			}
 
-			/* prose-blockquote:my-3 font-normal */
+
 			.prose blockquote {
 				margin: 0.75rem 0;
 				padding-left: 1.1111em;
@@ -492,14 +475,14 @@
 				font-weight: 400;
 			}
 
-			/* prose-hr:my-4 border-gray-50 dark:border-gray-850/30 */
+
 			.prose hr {
 				margin: 1rem 0;
 				border: 0;
 				border-top: 1px solid var(--hr);
 			}
 
-			/* app.css .marked a { @apply underline } */
+
 			.prose a {
 				color: inherit;
 				text-decoration: underline;
@@ -513,7 +496,7 @@
 				margin-bottom: 0;
 			}
 
-			/* streaming caret — Open WebUI w-[0.125rem] h-3.5 animate-pulse */
+
 			.caret {
 				display: inline-block;
 				width: 0.125rem;
@@ -568,7 +551,7 @@
 				user-select: none;
 			}
 
-			/* Error.svelte:38-45 */
+
 			.err {
 				display: flex;
 				align-items: flex-start;
@@ -588,8 +571,7 @@
 				color: var(--stat);
 			}
 
-			/* ── placeholder ──────────────────────────────────────── */
-			/* Placeholder.svelte:97 m-auto max-w-[58rem] translate-y-6 py-24 text-center */
+
 			#placeholder {
 				margin: auto;
 				width: 100%;
@@ -598,7 +580,7 @@
 				text-align: center;
 			}
 
-			/* Placeholder.svelte:231 text-base font-normal max-w-3xl w-full py-3 */
+
 			#ph-composer {
 				width: 100%;
 				max-width: 48rem;
@@ -608,14 +590,13 @@
 				font-weight: 400;
 			}
 
-			/* Suggestions.svelte */
-			/* Placeholder.svelte:280 max-w-2xl, :281 mx-5 */
+
 			.sugg-label {
 				display: flex;
 				align-items: center;
 				gap: 0.25rem;
 				justify-content: flex-start;
-				margin: 0.5rem auto 0.25rem; /* Placeholder.svelte:280 mt-2 */
+				margin: 0.5rem auto 0.25rem; 
 				max-width: 42rem;
 				padding: 0 1.25rem;
 				font-size: 0.75rem;
@@ -623,12 +604,12 @@
 			}
 
 			.sugg-label svg {
-				width: 0.75rem; /* Bolt.svelte size-3 */
+				width: 0.75rem; 
 				height: 0.75rem;
 			}
 
 			.sugg-list {
-				height: 9rem; /* Suggestions.svelte:87 h-36 — reserved so it cannot reflow */
+				height: 9rem; 
 				max-width: 42rem;
 				margin: 0 auto;
 				padding: 0 1.25rem;
@@ -636,8 +617,7 @@
 				flex-direction: column;
 			}
 
-			/* Suggestions.svelte:95 px-2.5 py-1.5 rounded-lg, no hover background —
-			   the title colour change is the hover affordance */
+
 			.sugg {
 				display: flex;
 				flex-direction: column;
@@ -649,7 +629,7 @@
 				line-height: 1.375;
 			}
 
-			/* Suggestions.svelte:103 text-sm font-normal */
+
 			.sugg b {
 				font-size: 0.875rem;
 				font-weight: 400;
@@ -661,19 +641,18 @@
 				color: var(--sugg-title-hover);
 			}
 
-			/* Suggestions.svelte:108 text-xs text-gray-600 dark:text-gray-400 */
+
 			.sugg i {
 				font-size: 0.75rem;
 				font-style: normal;
 				color: var(--actions-alt);
 			}
 
-			/* ── composer ─────────────────────────────────────────────
-			   Open WebUI: shadow-lg rounded-3xl border px-0.5 backdrop-blur-sm */
+
 			#bottom {
 				flex: none;
 				width: 100%;
-				max-width: min(52rem, 100vw - 620px); /* 832px: clears the 288px legend gutter at 1440 */
+				max-width: min(52rem, 100vw - 620px); 
 				margin: 0 auto;
 				padding: 0 0.75rem 0.75rem;
 			}
@@ -684,9 +663,9 @@
 
 			.composer-wrap {
 				width: 100%;
-				max-width: min(52rem, 100vw - 620px); /* 832px: clears the 288px legend gutter at 1440 */
+				max-width: min(52rem, 100vw - 620px); 
 				margin: 0 auto;
-				padding: 0 0.5rem; /* MessageInput.svelte:1678 px-2 */
+				padding: 0 0.5rem; 
 			}
 
 			.composer {
@@ -698,7 +677,7 @@
 				border: 1px solid color-mix(in oklch, var(--composer-border) 30%, transparent);
 				padding: 0 0.125rem;
 				background: var(--composer-bg);
-				backdrop-filter: blur(8px); /* v4 --blur-sm is 8px, not 4px */
+				backdrop-filter: blur(8px); 
 				box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 				transition: border-color 0.15s;
 			}
@@ -712,7 +691,7 @@
 			}
 
 			.composer-inner {
-				padding: 0 0.5rem; /* MessageInput.svelte:1989 px-2 */
+				padding: 0 0.5rem; 
 				display: flex;
 				flex-direction: column;
 				width: 100%;
@@ -728,7 +707,7 @@
 				font-family: inherit;
 				font-size: 1rem;
 				line-height: 1.5;
-				padding: 0.5rem 0.25rem 0.125rem; /* pt-2 px-1 pb-0.5 */
+				padding: 0.5rem 0.25rem 0.125rem; 
 				max-height: 24rem;
 				overflow: auto;
 			}
@@ -741,12 +720,10 @@
 				display: flex;
 				align-items: center;
 				justify-content: space-between;
-				padding: 0.125rem 0.125rem 0.5rem; /* mt-0.5 mx-0.5 mb-2 */
+				padding: 0.125rem 0.125rem 0.5rem; 
 			}
 
-			/* MessageInput.svelte:2530 model selector trigger:
-			   gap-1.5 rounded-lg pl-2 pr-1.5 py-1 text-[0.8125rem] font-normal
-			   text-gray-600 hover:bg-gray-50/40 dark:text-gray-300 */
+
 			.model-chip {
 				cursor: default;
 				display: flex;
@@ -770,7 +747,7 @@
 
 			@media (min-width: 640px) {
 				.model-chip {
-					max-width: 13rem; /* MessageInput.svelte:2529 sm:max-w-[13rem] */
+					max-width: 13rem; 
 				}
 			}
 
@@ -813,15 +790,13 @@
 				height: 1.25rem;
 			}
 
-			/* ── floating panel (PiP) ─────────────────────────────────
-			   Styled after Open WebUI DropdownMenu: rounded-xl border
-			   bg-white dark:bg-gray-850 shadow-lg. Floats over the chat. */
+
 			#hud {
 				position: fixed;
 				top: 0.5rem;
 				right: 0.75rem;
 				z-index: 40;
-				width: 18rem; /* fixed: expanding changes height only */
+				width: 18rem; 
 			}
 
 			#hud summary {
@@ -886,7 +861,7 @@
 			}
 
 			#hud .chev {
-				margin-left: 0.5rem; /* .sub takes the auto; arrow stays flush right */
+				margin-left: 0.5rem; 
 				width: 0.75rem;
 				height: 0.75rem;
 				color: var(--gray-400);
@@ -1034,9 +1009,6 @@
 						<button class="sugg" data-p="Explain what a hybrid cloud is in two sentences.">
 							<b>Explain hybrid cloud</b><i>in two sentences</i>
 						</button>
-						<!-- Deliberately no networking-trivia prompts. The chat is the prop;
-						     a 1b model is unreliable on protocol detail and this audience
-						     grades it. These two set up the state-loss beat instead. -->
 						<button class="sugg" data-p="Remember this for later: the maintenance window is Tuesday 0200 UTC.">
 							<b>Set a maintenance window</b><i>then ask for it again after the move</i>
 						</button>
@@ -1094,7 +1066,6 @@
 			</div>
 		</details>
 
-		<!-- the composer is moved between #ph-composer (empty state) and #bottom -->
 		<div class="composer-wrap" id="composer-wrap">
 			<div class="composer">
 				<div class="composer-inner">
@@ -1119,24 +1090,22 @@
 			const MARK =
 				'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>';
 
-			/* ── markdown: marked + DOMPurify + highlight.js, as Open WebUI does ── */
+
 			marked.setOptions({ gfm: true, breaks: true });
 			const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			const md = (src) =>
 				DOMPurify.sanitize(marked.parse(src ?? ''), {
-					// model output must not shadow the app's own ids: #messages precedes
-					// #input and #f-site in the DOM, so a <span id="input"> kills the
-					// composer and a <span id="f-site"> freezes the legend on a stale site
+
+
 					SANITIZE_NAMED_PROPS: true,
-					// without this a reply can paint a pixel-exact fake legend over the real one
+
 					FORBID_ATTR: ['style'],
-					// 'input' is deliberately absent: forbidding it silently breaks the GFM
-					// task lists that gfm:true asks for. ADD_ATTR is absent too — 'target'
-					// is not default-allowed, and admitting it re-enables reverse tabnabbing
+
+
 					FORBID_TAGS: ['form', 'button', 'select', 'textarea']
 				});
 
-			// CodeBlock.svelte:559 puts `hljs` on the <pre>; marked emits language-* on <code>
+
 			function highlight(root) {
 				root.querySelectorAll('pre code').forEach((code) => {
 					const lang = (code.className.match(/language-([\w-]+)/) || [])[1];
@@ -1150,17 +1119,17 @@
 				});
 			}
 
-			/* ── theme ─────────────────────────────────────────────── */
+
 			$('theme').onclick = () => {
 				const sysDark = matchMedia('(prefers-color-scheme: dark)').matches;
 				const cur = document.documentElement.dataset.theme || (sysDark ? 'dark' : 'light');
 				document.documentElement.dataset.theme = cur === 'dark' ? 'light' : 'dark';
 			};
 
-			/* ── session ───────────────────────────────────────────── */
+
 			const messages = $('messages');
-			// crypto.randomUUID is secure-context only; this demo is reached
-			// over plain http by IP, where it is undefined
+
+
 			const uuid = () =>
 				crypto.randomUUID?.() ??
 				Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -1175,14 +1144,14 @@
 			}
 			$('new-chat').onclick = newChat;
 
-			/* ── the composer lives in the placeholder until a message exists ── */
+
 			function placeComposer() {
 				const empty = messages.children.length === 0;
 				$('placeholder').hidden = !empty;
 				(empty ? $('ph-composer') : $('bottom')).append($('composer-wrap'));
 			}
 
-			/* ── message rendering ─────────────────────────────────── */
+
 			function addUser(text) {
 				const el = document.createElement('div');
 				el.className = 'msg user';
@@ -1213,7 +1182,7 @@
 				s.scrollTop = s.scrollHeight;
 			}
 
-			/* ── chat: POST, then read the SSE stream with fetch ───── */
+
 			let busy = false;
 			let ctrl = null;
 
@@ -1252,7 +1221,7 @@
 						if (done) break;
 						buf += dec.decode(value, { stream: true });
 
-						// frames end at a blank line; keep any partial tail for next read
+
 						const parts = buf.split('\n\n');
 						buf = parts.pop();
 
@@ -1260,9 +1229,7 @@
 							if (!part.startsWith('data: ')) continue;
 							const frame = JSON.parse(part.slice(6));
 
-							// the terminal frame must be tested FIRST: /whereami's link
-							// error rides along inside it and would otherwise be read as
-							// a chat failure, wiping a perfectly good answer
+
 							if (frame.done) {
 								ended = true;
 								prose.innerHTML = md(acc);
@@ -1279,7 +1246,7 @@
 									navigator.clipboard?.writeText(acc).catch(() => {});
 							} else if (frame.error) {
 								ended = true;
-								// keep what streamed in, exactly as the catch below does
+
 								prose.innerHTML =
 									md(acc) +
 									'<span class="err">' +
@@ -1298,7 +1265,7 @@
 					}
 				} catch (e) {
 					if (e.name !== 'AbortError') {
-						// keep whatever streamed in rather than discarding the answer
+
 						prose.innerHTML = md(acc) + `<span class="err">${esc(String(e))}</span>`;
 					}
 				} finally {
@@ -1331,7 +1298,7 @@
 				};
 			});
 
-			/* ── the panel: poll /whereami and detect a move ────────── */
+
 			let polling = false;
 			const state = { instance: null, site: null, model: null, lastOk: null, down: false };
 
@@ -1385,7 +1352,7 @@
 				try {
 					host = new URL(d.model_url).host;
 				} catch {
-					/* OLLAMA_URL with no scheme: show it raw rather than throw */
+
 				}
 				$('f-mhost').textContent = host;
 				$('f-mip').textContent = d.link.model_ip || '—';
@@ -1400,16 +1367,15 @@
 			}
 
 			async function poll() {
-				// setInterval does not wait for the previous call; overlapping polls
-				// could log a phantom reverse move and clear the transcript twice
+
+
 				if (polling) return;
 				polling = true;
 
 				let d;
 				try {
-					// a blackholed link never refuses, so without a deadline this await
-					// never settles, the `polling` guard sticks true, and the legend
-					// keeps showing a green dot and a stale rtt indefinitely
+
+
 					const r = await fetch('/whereami', {
 						cache: 'no-store',
 						signal: AbortSignal.timeout(2500)
@@ -1420,7 +1386,7 @@
 				} catch {
 					if (!state.down) {
 						state.down = true;
-						ctrl?.abort(); // an in-flight chat to a gone app will never settle
+						ctrl?.abort(); 
 						$('hud-dot').className = 'dot bad';
 						$('hud-site').textContent = 'reconnecting…';
 						logRow(state.instance ? 'lost contact with the app' : 'app not reachable');
@@ -1429,13 +1395,11 @@
 					return;
 				}
 
-				// below here is our own code — a throw must not be misreported
-				// as the app being unreachable
+
 				try {
 					if (state.instance && d.instance_id !== state.instance) {
-						// a different process is answering: the app moved or restarted.
-						// its own uptime dates its start, so subtracting it removes the
-						// poll interval we would otherwise count as downtime
+
+
 						const seen = (Date.now() - state.lastOk) / 1000;
 						const gap = Math.max(0, seen - (d.uptime_s ?? 0)).toFixed(1);
 						const lost = messages.children.length;

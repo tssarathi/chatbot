@@ -58,9 +58,6 @@ async def _probe() -> None:
                 LINK["model_ip"] = info[0][4][0]
                 LINK["error"] = None
             except (httpx.HTTPError, OSError) as exc:
-                # clear every metric, not just rtt: leaving a stale first-token and
-                # throughput on screen reports live model performance over a link
-                # the same panel is calling down
                 LINK["rtt_ms"] = LINK["ttft_ms"] = LINK["tok_per_s"] = None
                 LINK["model_ip"] = None
                 LINK["error"] = exc.__class__.__name__
@@ -85,8 +82,6 @@ class Ask(BaseModel):
 
 @app.get("/")
 def index():
-    # no-cache, not no-store: revalidate every load. Without this the browser
-    # heuristically caches index.html and can serve a stale page after a move.
     return FileResponse(INDEX, headers={"cache-control": "no-cache"})
 
 
@@ -115,8 +110,6 @@ def _rate(frame: dict) -> float | None:
 async def _stream(history: list[dict[str, str]], message: str):
     words: list[str] = []
     t0 = time.monotonic()
-    # per-request, NOT in LINK: two concurrent chats would otherwise report each
-    # other's timings, both in the receipt and on the panel
     ttft_ms: int | None = None
     tok_per_s: float | None = None
 
@@ -124,9 +117,6 @@ async def _stream(history: list[dict[str, str]], message: str):
     history.append(turn)
     completed = False
     try:
-        # connect must fail fast: a dropped link (pulled cable, iptables DROP,
-        # docker network disconnect) never refuses, so a single 120s budget would
-        # leave the user staring at a caret. Generation still gets the full 120s.
         async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=3.0)) as client:
             async with client.stream(
                 "POST",
@@ -151,22 +141,14 @@ async def _stream(history: list[dict[str, str]], message: str):
         yield f"data: {json.dumps({'error': 'model unreachable', 'detail': detail})}\n\n"
         return
     finally:
-        # A turn is atomic: both halves land, or neither does. Without this, an
-        # abnormal end — upstream error, client disconnect, a move mid-stream —
-        # strands the user turn and the NEXT question gets answered with the answer
-        # to the abandoned one. Storing the partial reply instead is truthful but
-        # worse: the model then finishes the truncated thought rather than
-        # answering what was actually asked.
         if completed:
             history.append({"role": "assistant", "content": "".join(words)})
         else:
             for i in range(len(history) - 1, -1, -1):
-                if history[i] is turn:  # identity, not equality: same text may repeat
+                if history[i] is turn:
                     del history[i]
                     break
 
-    # publish for the panel's "last measured" rows, then report this request's
-    # own figures in its own receipt
     LINK["ttft_ms"] = ttft_ms
     LINK["tok_per_s"] = tok_per_s
 
