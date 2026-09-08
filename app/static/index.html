@@ -1185,6 +1185,8 @@
 
 			let busy = false;
 			let ctrl = null;
+			let abortNote = null;
+			let linkDownPolls = 0;
 
 			async function send() {
 				const text = $('input').value.trim();
@@ -1265,10 +1267,12 @@
 					}
 				} catch (e) {
 					if (e.name !== 'AbortError') {
-
 						prose.innerHTML = md(acc) + `<span class="err">${esc(String(e))}</span>`;
+					} else if (abortNote) {
+						prose.innerHTML = md(acc) + `<span class="err">${esc(abortNote)}</span>`;
 					}
 				} finally {
+					abortNote = null;
 					ctrl = null;
 					prose.querySelector('.caret')?.remove();
 					busy = false;
@@ -1422,6 +1426,12 @@
 					state.lastOk = Date.now();
 					state.down = false;
 					paint(d);
+
+					linkDownPolls = d.link.error ? linkDownPolls + 1 : 0;
+					if (linkDownPolls >= 2 && busy) {
+						abortNote = 'model unreachable (' + d.link.error + ')';
+						ctrl?.abort();
+					}
 				} finally {
 					polling = false;
 				}
