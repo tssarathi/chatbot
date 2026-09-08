@@ -112,7 +112,10 @@ async def _stream(history: list[dict[str, str]]):
     words: list[str] = []
     t0 = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
+        # connect must fail fast: a dropped link (pulled cable, iptables DROP,
+        # docker network disconnect) never refuses, so a single 120s budget would
+        # leave the user staring at a caret. Generation still gets the full 120s.
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=3.0)) as client:
             async with client.stream(
                 "POST",
                 f"{OLLAMA_URL}/api/chat",
