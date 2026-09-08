@@ -14,7 +14,6 @@ SCRIPT = INDEX[INDEX.rindex("<script>") + 8 : INDEX.rindex("</script>")]
 
 
 def _fn(name):
-    """Body of a top-level `function name(...)` in the page script."""
     i = SCRIPT.index(f"function {name}(")
     j = SCRIPT.index("{", i)
     depth, k = 0, j
@@ -138,7 +137,6 @@ def test_chat_streams_and_reports_its_own_timings(monkeypatch):
 
 
 def test_terminal_frame_never_carries_the_probe_error(monkeypatch):
-    """A failing probe must not turn a completed answer into an error box."""
     monkeypatch.setattr(main.httpx, "AsyncClient", stub(ok_stream))
     main.LINK["error"] = "ConnectError"
     done = chat("s", "hi")[-1]
@@ -173,24 +171,16 @@ def test_rate_survives_missing_or_zero_counters():
 
 
 def test_every_lookup_in_the_page_resolves():
-    """One null getElementById throws at parse time and kills the whole script."""
     used = set(re.findall(r"\$\('([^']+)'\)", SCRIPT))
     have = set(re.findall(r'id="([^"]+)"', INDEX))
     assert used <= have, f"no element with id: {sorted(used - have)}"
 
 
 def test_session_id_never_calls_a_secure_context_only_api():
-    """crypto.randomUUID is undefined over plain http by IP, which is how this is reached."""
     assert not re.search(r"(?<!\?)\.\s*randomUUID\s*\(", SCRIPT)
 
 
 def test_theme_cannot_drift():
-    """Every token is declared exactly once, so the two dark paths cannot disagree.
-
-    This used to be three blocks (light, @media dark, [data-theme=dark]) with the
-    dark values written twice; editing one and not the other made system-dark and
-    toggle-dark render differently for different users, silently.
-    """
     style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
     declared = re.findall(r"^\s*(--[a-z0-9-]+)\s*:", style, re.M)
     dupes = {n for n in declared if declared.count(n) > 1}
@@ -199,11 +189,6 @@ def test_theme_cannot_drift():
 
 
 def test_buttons_do_not_fall_back_to_native_chrome():
-    """An unstyled <button> paints the UA buttonface and a 2px outset border.
-
-    Under color-scheme: dark that became a grey raised box on a dark page, so the
-    reset lives on the shared rule rather than being repeated per button.
-    """
     style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
     rule = re.search(r"\n\t+button \{(.*?)\n\t+\}", style, re.S).group(1)
     for prop in ("background", "border", "color"):
