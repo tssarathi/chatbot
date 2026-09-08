@@ -5,8 +5,16 @@ description = "A small chat app that reports where it is running"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi[standard]>=0.141.1",
+    # not fastapi[standard]: that pulls the fastapi CLI chain (typer, rich,
+    # pygments, sentry-sdk, a cloud CLI) plus jinja2, python-multipart and
+    # email-validator — none of which this app imports. Image size is part of
+    # this project's point, and the dependency list gets read by the audience.
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.52.4",
     "httpx>=0.28.1",
+    # imported directly in app/main.py, so declared directly rather than relied
+    # on as a transitive of fastapi
+    "pydantic>=2.13.5",
 ]
 
 [tool.ruff]
