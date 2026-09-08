@@ -6,6 +6,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 import httpx
 from fastapi import FastAPI
@@ -107,7 +108,7 @@ def whereami():
     }
 
 
-def _rate(frame: dict) -> float | None:
+def _rate(frame: dict[str, Any]) -> float | None:
     n, ns = frame.get("eval_count"), frame.get("eval_duration")
     return round(n / (ns / 1e9), 1) if n and ns else None
 

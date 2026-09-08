@@ -190,9 +190,10 @@ def test_theme_cannot_drift():
 
 def test_buttons_do_not_fall_back_to_native_chrome():
     style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
-    rule = re.search(r"\n\t+button \{(.*?)\n\t+\}", style, re.S).group(1)
+    rule = re.search(r"\n\t+button \{(.*?)\n\t+\}", style, re.S)
+    assert rule, "no shared button rule in the stylesheet"
     for prop in ("background", "border", "color"):
-        assert re.search(rf"\n\s*{prop}:", rule), f"button rule does not reset {prop}"
+        assert re.search(rf"\n\s*{prop}:", rule.group(1)), f"button rule does not reset {prop}"
 
 
 def test_all_three_theme_states_are_switchable():
