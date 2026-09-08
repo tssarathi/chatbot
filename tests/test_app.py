@@ -147,6 +147,34 @@ def test_page_reads_the_terminal_frame_before_the_error_frame():
     assert SCRIPT.index("frame.done") < SCRIPT.index("frame.error")
 
 
+def test_a_model_error_at_http_200_reaches_the_user(monkeypatch):
+    def oom(_request):
+        return httpx.Response(200, content=ndjson({"error": "model requires more system memory"}))
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", stub(oom))
+    done = chat("s", "hi")[-1]
+    assert done["error"] == "model failed"
+    assert done["detail"] == "model requires more system memory"
+    assert main.SESSIONS["s"] == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"message": {"content": "hi "}, "done": false}\n<html>502</html>\n',
+        b'{"message": {"role": "assistant"}, "done": false}\n',
+        b"[1,2,3]\n",
+    ],
+)
+def test_garbage_from_the_model_ends_the_stream_politely(monkeypatch, body):
+    monkeypatch.setattr(
+        main.httpx, "AsyncClient", stub(lambda _r: httpx.Response(200, content=body))
+    )
+    done = chat("s", "hi")[-1]
+    assert done["error"] == "bad reply from model"
+    assert main.SESSIONS["s"] == []
+
+
 def test_a_failed_chat_leaves_no_dangling_turn(monkeypatch):
     def dies(_request):
         raise httpx.ReadTimeout("cut")

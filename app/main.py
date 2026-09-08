@@ -136,6 +136,12 @@ async def _stream(history: list[dict[str, str]], message: str):
                     if not line:
                         continue
                     frame = json.loads(line)
+                    if frame.get("error"):
+                        problem = json.dumps(
+                            {"error": "model failed", "detail": str(frame["error"])}
+                        )
+                        yield f"data: {problem}\n\n"
+                        return
                     if frame.get("done"):
                         tok_per_s = _rate(frame)
                         completed = True
@@ -147,6 +153,10 @@ async def _stream(history: list[dict[str, str]], message: str):
     except httpx.HTTPError as exc:
         detail = exc.__class__.__name__
         yield f"data: {json.dumps({'error': 'model unreachable', 'detail': detail})}\n\n"
+        return
+    except Exception as exc:
+        detail = exc.__class__.__name__
+        yield f"data: {json.dumps({'error': 'bad reply from model', 'detail': detail})}\n\n"
         return
     finally:
         if completed:
