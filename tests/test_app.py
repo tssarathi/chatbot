@@ -198,6 +198,18 @@ def test_theme_cannot_drift():
     assert "prefers-color-scheme" not in style
 
 
+def test_buttons_do_not_fall_back_to_native_chrome():
+    """An unstyled <button> paints the UA buttonface and a 2px outset border.
+
+    Under color-scheme: dark that became a grey raised box on a dark page, so the
+    reset lives on the shared rule rather than being repeated per button.
+    """
+    style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
+    rule = re.search(r"\n\t+button \{(.*?)\n\t+\}", style, re.S).group(1)
+    for prop in ("background", "border", "color"):
+        assert re.search(rf"\n\s*{prop}:", rule), f"button rule does not reset {prop}"
+
+
 def test_all_three_theme_states_are_switchable():
     style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
     assert "color-scheme: light dark;" in style
