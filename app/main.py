@@ -117,7 +117,9 @@ async def _stream(history: list[dict[str, str]], message: str):
     history.append(turn)
     completed = False
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=3.0)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=3.0, read=45.0)
+        ) as client:
             async with client.stream(
                 "POST",
                 f"{OLLAMA_URL}/api/chat",
