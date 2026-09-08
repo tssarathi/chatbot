@@ -115,6 +115,10 @@ def _rate(frame: dict) -> float | None:
 async def _stream(history: list[dict[str, str]]):
     words: list[str] = []
     t0 = time.monotonic()
+    # per-request, NOT in LINK: two concurrent chats would otherwise report each
+    # other's timings, both in the receipt and on the panel
+    ttft_ms: int | None = None
+    tok_per_s: float | None = None
     try:
         # connect must fail fast: a dropped link (pulled cable, iptables DROP,
         # docker network disconnect) never refuses, so a single 120s budget would
@@ -131,10 +135,10 @@ async def _stream(history: list[dict[str, str]]):
                         continue
                     frame = json.loads(line)
                     if frame.get("done"):
-                        LINK["tok_per_s"] = _rate(frame)
+                        tok_per_s = _rate(frame)
                         break
                     if not words:
-                        LINK["ttft_ms"] = round((time.monotonic() - t0) * 1000)
+                        ttft_ms = round((time.monotonic() - t0) * 1000)
                     words.append(frame["message"]["content"])
                     yield f"data: {json.dumps({'token': words[-1]})}\n\n"
     except httpx.HTTPError as exc:
@@ -142,8 +146,21 @@ async def _stream(history: list[dict[str, str]]):
         yield f"data: {json.dumps({'error': 'model unreachable', 'detail': detail})}\n\n"
         return
 
+    # publish for the panel's "last measured" rows, then report this request's
+    # own figures in its own receipt
+    LINK["ttft_ms"] = ttft_ms
+    LINK["tok_per_s"] = tok_per_s
+
     history.append({"role": "assistant", "content": "".join(words)})
-    yield f"data: {json.dumps({'done': True, 'turns': len(history), **LINK})}\n\n"
+    receipt = {
+        "done": True,
+        "turns": len(history),
+        "ttft_ms": ttft_ms,
+        "tok_per_s": tok_per_s,
+        "rtt_ms": LINK["rtt_ms"],
+        "model_ip": LINK["model_ip"],
+    }
+    yield f"data: {json.dumps(receipt)}\n\n"
 
 
 @app.post("/chat")
