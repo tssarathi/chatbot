@@ -61,8 +61,6 @@
 				--infra-muted: light-dark(oklch(0.5 0.01 75), oklch(0.57 0.009 75));
 				--infra-border: light-dark(oklch(0.84 0.01 70), oklch(0.34 0.007 70));
 				--infra-active: light-dark(oklch(0.62 0.14 155), oklch(0.72 0.14 155));
-				--infra-brand: oklch(0.64 0.22 29);
-				--infra-kubernetes: light-dark(oklch(0.55 0.16 250), oklch(0.66 0.17 258));
 				--infra-highlight: light-dark(oklch(0.91 0.01 70), oklch(0.17 0.006 70));
 				--infra-glow: light-dark(oklch(0.6 0.19 45), oklch(0.67 0.2 45));
 				--rail-w: 340px;
@@ -627,7 +625,19 @@
 				color: var(--infra-fg);
 			}
 			.serving-title.onprem { color: var(--onprem); }
-			.serving-title.cloud { color: var(--cloud); }
+			.serving-title.cloud, .serving-title.rosa, .serving-title.eks { color: var(--cloud); }
+			.serving-aws {
+				width: 2.6rem;
+				height: 1.55rem;
+				object-fit: contain;
+				flex: none;
+				margin-left: 0.5rem;
+				padding: 0.2rem 0.3rem;
+				border-radius: 0.25rem;
+				background: #232f3e;
+				align-self: center;
+			}
+			.serving-aws[hidden] { display: none; }
 			.serving-sub {
 				margin-top: 0.25rem;
 				font-size: 10px;
@@ -657,12 +667,43 @@
 				padding: 1rem 0;
 				border-bottom: 1px solid var(--infra-border);
 			}
-			.status-row { border-bottom: 0; }
+			.status-row {
+				border-bottom: 0;
+				gap: 0.75rem;
+				padding: 0.65rem 0 0.25rem;
+			}
 			.plat-row svg.lead, .status-row svg.lead { width: 1.25rem; height: 1.25rem; flex: none; }
-			.plat-row .brand-icon { color: var(--infra-brand); width: 1.75rem; height: 1.75rem; }
-			.plat-row .k8s-icon { margin-left: auto; color: var(--infra-kubernetes); width: 1.25rem; height: 1.25rem; }
+			.status-row svg.lead { width: 1rem; height: 1rem; }
+			.plat-row .brand-logo {
+				width: 2.25rem;
+				height: 2.25rem;
+				object-fit: contain;
+				flex: none;
+				border-radius: 0.3rem;
+			}
+			.plat-row .brand-logo.eks {
+				width: 2.15rem;
+				height: 2.15rem;
+			}
+			.plat-row .k8s-logo {
+				width: 1.75rem;
+				height: 1.75rem;
+				object-fit: contain;
+				margin-left: auto;
+				flex: none;
+			}
 			.status-row .lead { color: var(--infra-active); }
 			.status-row.bad .lead { color: var(--bad); }
+			.status-row .row-label { font-size: 7px; letter-spacing: 0.07em; }
+			.status-row .row-value {
+				margin-top: 0.15rem;
+				font-size: 0.65rem;
+			}
+			.status-row .row-hint {
+				margin-top: 0.12rem;
+				font-size: 9px;
+			}
+			.status-row .row-badge { font-size: 7px; }
 
 			.row-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 			.row-label {
@@ -954,17 +995,18 @@
 								<p class="serving-title" id="f-site">—</p>
 								<p class="serving-sub">Portable target — <span id="f-platform">—</span></p>
 							</div>
+							<img class="serving-aws" id="f-aws-logo" src="/static/img/aws.png" alt="AWS" width="42" height="25" hidden />
 							<span class="live-pill" id="live-pill"><span class="signal ok"></span>Live</span>
 						</div>
 					</div>
 					<div class="plat-row">
-						<svg class="lead brand-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1.5 7.5v9L12 22l10.5-5.5v-9L12 2zm0 2.2 8.3 4.35v7.9L12 19.8l-8.3-4.35v-7.9L12 4.2z" /></svg>
+						<img class="brand-logo" id="f-brand-logo" src="/static/img/openshift.png" alt="OpenShift" width="36" height="36" />
 						<div class="row-copy">
 							<p class="row-label">K8s platform</p>
 							<p class="row-value" id="f-plat-label">—</p>
-							<p class="row-hint">ROSA · OpenShift · EKS ready</p>
+							<p class="row-hint" id="f-plat-hint">ROSA · OpenShift · EKS ready</p>
 						</div>
-						<svg class="k8s-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5 3 6.5v11l9 5 9-5v-11l-9-5zm0 2.1 7.2 4v7.8L12 19.4l-7.2-4V7.6L12 3.6z" /></svg>
+						<img class="k8s-logo" src="/static/img/k8s.png" alt="Kubernetes" width="28" height="28" />
 					</div>
 					<div class="status-row" id="status-row">
 						<svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
@@ -980,9 +1022,11 @@
 					<h3>02 — Runtime details</h3>
 					<div class="stats">
 						<div class="stat-cell"><p class="lbl">Region</p><p class="val" id="f-region">—</p></div>
+						<div class="stat-cell"><p class="lbl">Zone</p><p class="val" id="f-zone">—</p></div>
 						<div class="stat-cell"><p class="lbl">Node</p><p class="val" id="f-node">—</p></div>
 						<div class="stat-cell"><p class="lbl">Pod</p><p class="val" id="f-pod">—</p></div>
 						<div class="stat-cell"><p class="lbl">Pod IP</p><p class="val" id="f-podip">—</p></div>
+						<div class="stat-cell"><p class="lbl">Namespace</p><p class="val" id="f-namespace">—</p></div>
 						<div class="stat-cell"><p class="lbl">Instance</p><p class="val" id="f-instance">—</p></div>
 						<div class="stat-cell"><p class="lbl">Uptime</p><p class="val" id="f-uptime">—</p></div>
 						<div class="stat-cell"><p class="lbl">Sessions</p><p class="val" id="f-sessions">—</p></div>
@@ -1078,6 +1122,12 @@
 					const src = document.getElementById(id);
 					if (!src) return;
 					el.className = src.className;
+					if (src.tagName === 'IMG') {
+						el.src = src.src;
+						el.alt = src.alt;
+						el.hidden = src.hidden;
+						return;
+					}
 					el.textContent = src.textContent;
 					el.innerHTML = src.innerHTML;
 				});
@@ -1346,10 +1396,12 @@
 			}
 
 			function paint(d) {
-				const cloud = (d.platform || '').includes('cloud');
 				const linkDown = !!d.link.error;
+				const plat = String(d.platform || '').toLowerCase();
+				const awsCloud = plat === 'rosa' || plat === 'eks';
+				const eks = plat === 'eks';
 
-				$('hud-site').textContent = d.site;
+				$('hud-site').textContent = d.site_title || d.site;
 				$('hud-dot').className = 'signal' + (linkDown ? ' bad' : '');
 				$('site-signal').className = 'signal' + (linkDown ? ' bad' : ' ok');
 				$('hud-sub').textContent = linkDown
@@ -1365,10 +1417,29 @@
 					d.link.tok_per_s != null ? `${d.link.tok_per_s} tok/s` : '—';
 
 				$('health-label').textContent = linkDown ? 'Link degraded' : 'System healthy';
-				$('f-site').textContent = cloud ? 'Cloud' : 'On-premises';
-				$('f-site').className = 'serving-title ' + (cloud ? 'cloud' : 'onprem');
-				$('f-platform').textContent = d.platform;
-				$('f-plat-label').textContent = cloud ? 'Cloud K8s' : 'On-prem OCP';
+				$('f-site').textContent = d.site_title || d.site || '—';
+				$('f-site').className = 'serving-title ' + (plat || 'onprem');
+				$('f-platform').textContent = d.platform || '—';
+				$('f-plat-label').textContent =
+					d.platform_label ||
+					(eks ? 'EKS' : plat === 'rosa' ? 'ROSA' : 'On-prem OCP');
+				$('f-plat-hint').textContent = eks
+					? 'Amazon EKS'
+					: plat === 'rosa'
+						? 'Red Hat OpenShift on AWS'
+						: 'Self-managed OpenShift';
+				const awsLogo = $('f-aws-logo');
+				awsLogo.hidden = !awsCloud;
+				const brand = $('f-brand-logo');
+				if (eks) {
+					brand.src = '/static/img/eks.png';
+					brand.alt = 'EKS';
+					brand.className = 'brand-logo eks';
+				} else {
+					brand.src = '/static/img/openshift.png';
+					brand.alt = 'OpenShift';
+					brand.className = 'brand-logo';
+				}
 				$('live-pill').className = 'live-pill' + (linkDown ? ' bad' : '');
 				$('live-pill').innerHTML =
 					`<span class="signal ${linkDown ? 'bad' : 'ok'}"></span>` +
@@ -1384,9 +1455,11 @@
 				$('f-app-code').className = 'row-badge' + (linkDown || state.down ? ' bad' : '');
 
 				$('f-region').textContent = d.region;
+				$('f-zone').textContent = d.zone || '—';
 				$('f-node').textContent = d.node;
 				$('f-pod').textContent = d.pod;
 				$('f-podip').textContent = d.pod_ip;
+				$('f-namespace').textContent = d.namespace || '—';
 				$('f-instance').textContent = d.instance_id;
 				$('f-uptime').textContent = fmtUptime(d.uptime_s);
 				$('f-sessions').textContent =

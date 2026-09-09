@@ -1,0 +1,23 @@
+# Cilium L2 LB on the nuberu mgmt pool (10.0.0.239–254).
+# VIP 10.0.0.240 is unassigned in config/vip-pools.yaml platform list.
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbot
+  namespace: chatbot
+  labels:
+    app: chatbot
+    app.kubernetes.io/name: chatbot
+  annotations:
+    lbipam.cilium.io/ips: "10.0.0.240"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 10.0.0.240
+  allocateLoadBalancerNodePorts: true
+  selector:
+    app: chatbot
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

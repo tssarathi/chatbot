@@ -112,8 +112,10 @@ All optional. Each falls back to something true about the machine.
 In Kubernetes, `NODE_NAME`, `POD_NAME` and `POD_IP` come from the Downward API.
 
 ```sh
-SITE=cloud-syd PLATFORM=cloud uv run uvicorn app.main:app
+SITE=rosa-syd PLATFORM=rosa uv run uvicorn app.main:app
 ```
+
+`PLATFORM` is one of `onprem` | `rosa` | `eks` (legacy `cloud` maps to `eks`).
 
 ## Running on localhost (Mac)
 
@@ -129,17 +131,33 @@ Stop host Ollama first if it already owns `11434`.
 
 ```sh
 docker compose stop onprem
-docker compose --profile cloud up -d
+docker compose --profile eks up -d              # or: --profile rosa / --profile cloud
 
 docker compose pause model                      # cut the model link
 docker compose unpause model
 
-docker compose stop cloud
+docker compose stop eks
 docker compose up -d                            # back to on-prem
 ```
 
 `pause` drops packets rather than refusing them. Killing the model container instead
 gives connection-refused.
+
+## Kubernetes (Cilium LB)
+
+Manifests live under `deploy/k8s/` (Namespace, RBAC, Deployment, LoadBalancer Service).
+On the nuberu mgmt cluster the Service uses Cilium IPAM VIP **10.0.0.240**:
+
+```sh
+export KUBECONFIG=/path/to/mgmt.kubeconfig
+docker build -t chatbot-site:latest .
+kubectl apply -k deploy/k8s
+kubectl -n chatbot get svc chatbot
+open http://10.0.0.240/
+```
+
+See `deploy/k8s/README.md` for image loading, model URL, and auto-detection of
+ONPREM / ROSA / EKS from node labels.
 
 ### Multi-arch images
 
