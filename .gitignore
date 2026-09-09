@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
-graphify-out/
 .coverage
 .vscode/settings.json
 .env

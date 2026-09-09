@@ -2,9 +2,9 @@
 
 A chat app that reports where it is running, and keeps reporting it while it moves.
 
-The chat itself is deliberately plain. The panel in the top right is the point: it shows
-the site, node, pod, address and model link, and updates once a second, including while
-the app is being moved from one place to another underneath it.
+The chat itself is deliberately plain. The environment rail on the right is the point: it
+shows the site, node, pod, address and model link, and updates once a second, including
+while the app is being moved from one place to another underneath it.
 
 ## Contents
 
@@ -13,7 +13,7 @@ the app is being moved from one place to another underneath it.
 - [Built with](#built-with)
 - [Getting started](#getting-started)
 - [Configuration](#configuration)
-- [Running the two sites](#running-the-two-sites)
+- [Running on localhost (Mac)](#running-on-localhost-mac)
 - [Where the conversation lives](#where-the-conversation-lives)
 - [HTTP API](#http-api)
 - [Development](#development)
@@ -22,25 +22,23 @@ the app is being moved from one place to another underneath it.
 
 ## How it works
 
-Every location fact the panel shows is either **injected** through an environment variable
+Every location fact the rail shows is either **injected** through an environment variable
 or falls back to something true about the machine it is on: the hostname, the resolved
 local address. Nothing is guessed or hard-coded, so the app runs bare with no configuration
 and still reports honestly.
 
-Three mechanisms drive the panel:
+Three mechanisms drive the rail:
 
 | Mechanism | What it does |
 | --- | --- |
 | **Instance fingerprint** | A random id generated when the process starts. The browser polls `/whereami` every second; a changed id can only mean a different process is answering, which is how a move is detected without the page reloading. |
-| **Link probe** | Every two seconds the app measures round-trip time to the model and smooths it (EWMA, 0.3 new / 0.7 old). If the model stops answering the panel goes red, and an answer being streamed is stopped with a reason rather than hanging. |
+| **Link probe** | Every two seconds the app measures round-trip time to the model and smooths it (EWMA, 0.3 new / 0.7 old). If the model stops answering the rail goes red, and an answer being streamed is stopped with a reason rather than hanging. |
 | **Session store** | Conversation state lives either in the process (default) or in a shared store. This decides whether a move loses the conversation or keeps it. |
 
 ## Architecture
 
 ```
 YOUR MACHINE
-│
-├── Ollama ─ localhost:11434 ─ the model, running natively
 │
 ├── Browser ─ http://localhost:8200
 │
@@ -52,40 +50,38 @@ YOUR MACHINE
     ├── network "cloud"  ── 10.30.0.0/24 ──┤
     │     └── app container  10.30.0.4     │   SITE=cloud-syd
     │                                      │
-    ├── modellink (nginx) ─────────────────┤   relays to the host's Ollama
-    │                                      │
+    ├── model (Ollama) ── :11434 ──────────┤   granite baked into the image
+    │                                      │   also published on localhost:11434
     └── sessions (redis) ──────────────────┘   optional shared conversation store
 ```
 
 Only one of the two app containers runs at a time, because both publish the same port, so
-swapping which one is up **is** the move. `modellink` and `sessions` sit on both networks
-and stay put.
+swapping which one is up **is** the move. `model` and `sessions` sit on both networks and
+stay put.
 
-A message travels browser → app container → `modellink` → Ollama on the host, and the
-generated words stream back the same way. The relay exists so that path contains a real
-container that can be cut.
+A message travels browser → app container → `model` → Ollama API, and the generated words
+stream back the same way. Pausing `model` cuts that hop mid-answer.
 
 ## Built with
 
 - [FastAPI](https://fastapi.tiangolo.com/) and [uvicorn](https://www.uvicorn.org/): the backend, just over 200 lines
 - [httpx](https://www.python-httpx.org/): streaming client for the model
-- [Ollama](https://ollama.com): runs the model
+- [Ollama](https://ollama.com): runs the model (host for bare runs; container image for Compose)
 - A single static HTML file: no build step, no framework, no bundler
 - [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify) and [highlight.js](https://highlightjs.org/): vendored, for rendering model output safely
-- [Docker Compose](https://docs.docker.com/compose/), nginx and Redis: the two sites, the relay and the shared store
+- [Docker Compose](https://docs.docker.com/compose/) and Redis: the two sites, the model server and the shared store
 
 ## Getting started
 
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/): installs Python 3.12 itself if you don't have it
-- [Ollama](https://ollama.com), with the model pulled:
+- [Docker](https://docs.docker.com/get-docker/): for the containerised sites and model server
+- For bare (non-Compose) runs only: [Ollama](https://ollama.com) with the model pulled:
 
   ```sh
-  ollama pull granite3.1-moe:1b
+  ollama pull granite4.1:8b
   ```
-
-- [Docker](https://docs.docker.com/get-docker/): only for the containerised sites
 
 ### Run it directly
 
@@ -94,7 +90,7 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Then open <http://localhost:8000/>.
+Then open <http://localhost:8000/>. The app expects Ollama on `localhost:11434`.
 
 ## Configuration
 
@@ -103,13 +99,13 @@ All optional. Each falls back to something true about the machine.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SITE` | machine hostname | Name reported as the app's location |
-| `PLATFORM` | `unknown` | `on-prem` / `cloud`, drives the panel's accent colour |
+| `PLATFORM` | `unknown` | `on-prem` / `cloud`, drives the rail's accent colour |
 | `REGION` | `unknown` | Region label |
 | `NODE_NAME` | machine hostname | Node the app is running on |
 | `POD_NAME` | machine hostname | Pod or container name |
 | `POD_IP` | resolved local address | Leave unset to report the real address |
 | `OLLAMA_URL` | `http://localhost:11434` | Where the model is served from |
-| `MODEL_NAME` | `granite3.1-moe:1b` | Model to use |
+| `MODEL_NAME` | `granite4.1:8b` | Model to use |
 | `SESSION_STORE` | `memory` | `memory` or `redis`, where conversation state lives |
 | `REDIS_URL` | `redis://localhost:6379` | Shared store, used when `SESSION_STORE=redis`. Compose sets `redis://sessions:6379`. |
 
@@ -119,36 +115,49 @@ In Kubernetes, `NODE_NAME`, `POD_NAME` and `POD_IP` come from the Downward API.
 SITE=cloud-syd PLATFORM=cloud uv run uvicorn app.main:app
 ```
 
-## Running the two sites
-
-Two sites, one published port, one model. Only one site runs at a time, and swapping which
-one is up **is** the move. The browser URL never changes; the container's address and subnet do,
-and the gap between the two commands is the outage the panel measures.
+## Running on localhost (Mac)
 
 ```sh
-docker compose --profile onprem up -d --build   # start on-prem
-open http://localhost:8200/                     # leave this open throughout
-
-docker compose stop onprem                      # move to cloud
-docker compose --profile cloud up -d            #   panel flips, transcript clears
-
-docker compose pause modellink                  # cut the model link
-docker compose unpause modellink                # restore it
-
-docker compose stop cloud                       # move back
-docker compose --profile onprem up -d
+docker compose up --build
+open http://localhost:8200/
 ```
 
-`pause` is deliberate: it drops packets rather than refusing them, which is what a pulled
-cable does. Killing the relay instead gives an instant connection-refused and exercises a
-different path.
+Compose builds **native arch only** (arm64 on Apple Silicon). App on `8200`, model on `11434`.
+Stop host Ollama first if it already owns `11434`.
 
-Both sites build from one image (`chatbot-site`), so rebuilding either updates both.
+### Move between sites
+
+```sh
+docker compose stop onprem
+docker compose --profile cloud up -d
+
+docker compose pause model                      # cut the model link
+docker compose unpause model
+
+docker compose stop cloud
+docker compose up -d                            # back to on-prem
+```
+
+`pause` drops packets rather than refusing them. Killing the model container instead
+gives connection-refused.
+
+### Multi-arch images
+
+Both Dockerfiles are multi-arch ready (`linux/amd64` + `linux/arm64`). Model weights are
+pulled once on the builder’s native arch and copied into each target.
+
+```sh
+docker buildx create --name multi --use   # once
+IMAGE_PREFIX=ghcr.io/<you>/ docker buildx bake --push
+```
+
+Without `IMAGE_PREFIX`, bake tags `chatbot-site` / `chatbot-model` locally — you still need
+a registry (`--push`) or a containerd image store to keep a multi-platform manifest.
 
 ## Where the conversation lives
 
 By default each site keeps conversations in its own memory, so a move loses them and the
-panel reports `conversation lost`. Point the sites at the shared store and the same move
+rail reports `conversation lost`. Point the sites at the shared store and the same move
 reports `conversation preserved` instead, because the new process reads the conversation
 the old one wrote:
 
@@ -158,7 +167,7 @@ comparison:
 
 ```sh
 export SESSION_STORE=redis
-docker compose --profile onprem up -d --build
+docker compose up --build
 # ...then the same move commands as above
 ```
 
@@ -171,7 +180,7 @@ is not the same as holding no state.
 | --- | --- |
 | `GET`/`HEAD` `/` | The page |
 | `GET`/`HEAD` `/healthz` | Liveness, plus the instance id. Reports no topology. |
-| `GET /whereami` | Everything the panel displays |
+| `GET /whereami` | Everything the rail displays |
 | `POST /chat` | Streams an answer as server-sent events |
 | `POST /history` | The stored conversation for a session |
 | `GET /static/…` | Vendored browser libraries |
@@ -198,23 +207,25 @@ uv run pytest                    # tests
 The suite covers the HTTP contract, the streaming failure paths and the session store, plus
 a set of invariants asserted directly against the page source: that every element id the
 script looks up exists, that no theme token is declared twice, that buttons do not fall
-back to native browser chrome, and that no code path collapses the panel or cancels an
+back to native browser chrome, and that no code path collapses the rail or cancels an
 answer silently. Most of those exist because the corresponding bug happened.
 
 ## Design notes
 
-**Ollama runs on the host, not in a container.** It is already installed and running there.
-A containerised Ollama gets no GPU on macOS, but measured on this model the difference is
-single-digit milliseconds to first token at identical throughput, so this is a setup
-convenience, not a performance decision.
+**The model is packaged into `chatbot-model`.** `model/Dockerfile` pulls `granite4.1:8b`
+on the builder’s native arch during the image build and copies the cache into each
+runtime arch. Compose serves it on `11434` (loopback). On macOS the container has no GPU;
+for this small model the gap is negligible.
 
-**The relay exists to be cut.** With the model on the host, nothing between the app and the
-model would otherwise be a container. `modellink` puts a real hop in that path, one that
-can be frozen mid-answer.
+**Images are multi-arch.** `docker compose up --build` on a Mac builds arm64 only.
+`docker buildx bake` produces `linux/amd64` + `linux/arm64` manifests for a registry.
 
-**The published port is bound to loopback.** The app has no authentication by design and it
-fronts an unauthenticated relay to the model, so it listens only on the local machine.
-Change `ports` in `compose.yaml` if you need it reachable from elsewhere.
+**The model container exists to be cut.** Pausing `model` freezes the hop mid-answer the
+same way a pulled cable would. Stopping it instead gives connection-refused.
+
+**Published ports are bound to loopback.** The app has no authentication by design and it
+fronts an unauthenticated model API, so both `8200` and `11434` listen only on the local
+machine. Change `ports` in `compose.yaml` if you need either reachable from elsewhere.
 
 ## Third-party code
 

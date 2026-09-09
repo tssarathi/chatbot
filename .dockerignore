@@ -9,4 +9,7 @@
 .DS_Store
 Dockerfile
 compose.yaml
+docker-bake.hcl
 README.md
+model
+tests

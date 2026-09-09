@@ -1,10 +1,13 @@
 name: chatbot
 
+# Local Mac: `docker compose up --build`
+# Builds the host arch only. Multi-arch images: `docker buildx bake` (docker-bake.hcl).
+
 x-site: &site
   build: .
   image: chatbot-site
   depends_on:
-    modellink: {condition: service_started}
+    model: {condition: service_healthy}
     sessions: {condition: service_healthy}
   ports: ["127.0.0.1:8200:8000"]
   healthcheck:
@@ -15,8 +18,8 @@ x-site: &site
     start_period: 3s
 
 x-site-env: &site-env
-  OLLAMA_URL: http://modellink:11434
-  MODEL_NAME: granite3.1-moe:1b
+  OLLAMA_URL: http://model:11434
+  MODEL_NAME: granite4.1:8b
   SESSION_STORE: ${SESSION_STORE:-memory}
   REDIS_URL: redis://sessions:6379
 
@@ -30,18 +33,21 @@ services:
       timeout: 2s
       retries: 3
 
-  modellink:
-    image: nginx:alpine
+  model:
+    build: ./model
+    image: chatbot-model
     networks: [onprem, cloud]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    configs:
-      - source: modellink
-        target: /etc/nginx/conf.d/default.conf
+    ports: ["127.0.0.1:11434:11434"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
+  # Default localhost site (no profile) so `docker compose up` just works.
   onprem:
     <<: *site
-    profiles: [onprem]
     environment:
       <<: *site-env
       SITE: on-prem-mel
@@ -70,22 +76,3 @@ networks:
   cloud:
     ipam:
       config: [{subnet: 10.30.0.0/24}]
-
-configs:
-  modellink:
-    content: |
-      server {
-        listen 11434;
-        resolver 127.0.0.11 ipv6=off valid=30s;
-        set $$ollama http://host.docker.internal:11434;
-        client_max_body_size 0;
-        location / {
-          proxy_pass $$ollama$$request_uri;
-          proxy_http_version 1.1;
-          proxy_set_header Connection "";
-          proxy_set_header Host localhost:11434;
-          proxy_buffering off;
-          proxy_request_buffering off;
-          proxy_read_timeout 300s;
-        }
-      }
