@@ -50,10 +50,10 @@ Two sites, one published port, one model. Only one site runs at a time — swapp
 which one **is** the move. The browser URL never changes; the container's address
 and subnet do, and the gap between the two commands is the outage the panel measures.
 
-Ollama stays on the host on purpose: a containerised one gets no GPU on macOS and
-first-token time goes from ~50 ms to seconds, which would make the panel's latency
-numbers meaningless. The `modellink` relay exists so the model link is a real
-network hop that can be cut.
+Ollama stays on the host because it is already installed and running there, not for
+speed — a containerised one gets no GPU on macOS, but a model this small barely
+notices. The `modellink` relay exists so the model link is a real network hop that
+can be cut.
 
 ```
 docker compose --profile onprem up -d --build      # start on-prem
