@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-model
+  namespace: chatbot
+  labels:
+    app: chatbot-model
+    app.kubernetes.io/name: chatbot-model
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatbot-model
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: chatbot-model
+        app.kubernetes.io/name: chatbot-model
+    spec:
+      # Image is pre-pulled via talosctl on this node (HTTP registry).
+      # Pull onto other nodes before removing the pin:
+      #   talosctl -n <ip> image pull 10.101.191.154:5000/chatbot-model:latest --namespace cri
+      nodeName: talos-8d8-vgd
+      containers:
+        - name: model
+          image: 10.101.191.154:5000/chatbot-model:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: ollama
+              containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:11434"
+            - name: OLLAMA_KEEP_ALIVE
+              value: "24h"
+          readinessProbe:
+            exec:
+              command: ["ollama", "list"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command: ["ollama", "list"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 500m
+              memory: 6Gi
+            limits:
+              memory: 12Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbot-model
+  namespace: chatbot
+  labels:
+    app: chatbot-model
+    app.kubernetes.io/name: chatbot-model
+spec:
+  type: ClusterIP
+  selector:
+    app: chatbot-model
+  ports:
+    - name: ollama
+      port: 11434
+      targetPort: ollama
+      protocol: TCP

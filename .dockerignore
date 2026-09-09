@@ -13,3 +13,4 @@ docker-bake.hcl
 README.md
 model
 tests
+deploy

@@ -76,8 +76,12 @@ def chat(session, message):
 def clean_state():
     main.SESSIONS.clear()
     main.LINK.update(rtt_ms=None, model_ip=None, ttft_ms=None, tok_per_s=None, error=None)
+    main._CLUSTER_CACHE["facts"] = None
+    main._CLUSTER_CACHE["at"] = 0.0
     yield
     main.SESSIONS.clear()
+    main._CLUSTER_CACHE["facts"] = None
+    main._CLUSTER_CACHE["at"] = 0.0
 
 
 def test_page_is_served():
@@ -110,11 +114,18 @@ def test_whereami_matches_what_the_page_reads():
     body = client.get("/whereami").json()
     assert set(body) == {
         "site",
+        "site_title",
         "platform",
+        "platform_label",
         "region",
+        "zone",
         "node",
         "pod",
         "pod_ip",
+        "namespace",
+        "provider_id",
+        "instance_type",
+        "in_cluster",
         "instance_id",
         "model",
         "model_url",
@@ -123,10 +134,60 @@ def test_whereami_matches_what_the_page_reads():
         "uptime_s",
     }
     assert set(body["link"]) == {"rtt_ms", "model_ip", "ttft_ms", "tok_per_s", "error"}
+    assert body["platform"] in {"onprem", "rosa", "eks"}
 
     read = set(re.findall(r"\bd\.([a-z_]+)\b", _fn("paint"))) - {"link"}
     assert read <= set(body), f"page reads fields /whereami does not return: {read - set(body)}"
 
+
+@pytest.mark.parametrize(
+    ("platform", "title", "label"),
+    [
+        ("onprem", "On-premises", "On-prem OCP"),
+        ("rosa", "ROSA", "ROSA"),
+        ("eks", "EKS", "EKS"),
+        ("cloud", "EKS", "EKS"),
+    ],
+)
+def test_platform_env_maps_to_ui_flavours(monkeypatch, platform, title, label):
+    monkeypatch.setenv("PLATFORM", platform)
+    monkeypatch.setenv("SITE", "")
+    monkeypatch.setenv("REGION", "ap-southeast-2")
+    main._CLUSTER_CACHE["facts"] = None
+    main._CLUSTER_CACHE["at"] = 0.0
+    body = client.get("/whereami").json()
+    assert body["platform"] == ("eks" if platform == "cloud" else platform)
+    assert body["site_title"] == title
+    assert body["platform_label"] == label
+
+
+def test_eks_node_labels_detect_eks(monkeypatch):
+    node = {
+        "metadata": {
+            "labels": {
+                "eks.amazonaws.com/nodegroup": "default",
+                "topology.kubernetes.io/region": "us-east-1",
+                "topology.kubernetes.io/zone": "us-east-1a",
+            }
+        },
+        "spec": {"providerID": "aws:///us-east-1a/i-abc"},
+    }
+    monkeypatch.delenv("PLATFORM", raising=False)
+    assert main._detect_platform(node) == "eks"
+
+
+def test_openshift_on_aws_detects_rosa(monkeypatch):
+    node = {
+        "metadata": {
+            "labels": {
+                "node.openshift.io/os_id": "rhcos",
+                "topology.kubernetes.io/region": "ap-southeast-2",
+            }
+        },
+        "spec": {"providerID": "aws:///ap-southeast-2a/i-rosa"},
+    }
+    monkeypatch.delenv("PLATFORM", raising=False)
+    assert main._detect_platform(node) == "rosa"
 
 def test_the_panel_says_where_conversations_are_kept():
     assert 'id="f-sessions"' in INDEX

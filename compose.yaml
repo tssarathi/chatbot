@@ -51,22 +51,34 @@ services:
     environment:
       <<: *site-env
       SITE: on-prem-mel
-      PLATFORM: on-prem
+      PLATFORM: onprem
       REGION: au-southeast
       NODE_NAME: r740-worker-02
       POD_NAME: chat-onprem
     networks: [onprem]
 
-  cloud:
+  rosa:
     <<: *site
-    profiles: [cloud]
+    profiles: [rosa]
     environment:
       <<: *site-env
-      SITE: cloud-syd
-      PLATFORM: cloud
+      SITE: rosa-syd
+      PLATFORM: rosa
       REGION: ap-southeast-2
-      NODE_NAME: pool-3-a9kq
-      POD_NAME: chat-cloud
+      NODE_NAME: rosa-worker-a
+      POD_NAME: chat-rosa
+    networks: [cloud]
+
+  eks:
+    <<: *site
+    profiles: [eks, cloud]
+    environment:
+      <<: *site-env
+      SITE: eks-syd
+      PLATFORM: eks
+      REGION: ap-southeast-2
+      NODE_NAME: eks-node-1a
+      POD_NAME: chat-eks
     networks: [cloud]
 
 networks:
