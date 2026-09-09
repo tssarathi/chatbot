@@ -111,7 +111,7 @@ All optional. Each falls back to something true about the machine.
 | `OLLAMA_URL` | `http://localhost:11434` | Where the model is served from |
 | `MODEL_NAME` | `granite3.1-moe:1b` | Model to use |
 | `SESSION_STORE` | `memory` | `memory` or `redis`, where conversation state lives |
-| `REDIS_URL` | `redis://sessions:6379` | Shared store, used when `SESSION_STORE=redis` |
+| `REDIS_URL` | `redis://localhost:6379` | Shared store, used when `SESSION_STORE=redis`. Compose sets `redis://sessions:6379`. |
 
 In Kubernetes, `NODE_NAME`, `POD_NAME` and `POD_IP` come from the Downward API.
 
