@@ -1152,7 +1152,6 @@
 
 			$('send').onclick = send;
 			$('input').addEventListener('input', (e) => {
-				$('hud').open = false;
 				$('send').disabled = !e.target.value.trim() || busy;
 				e.target.style.height = 'auto';
 				e.target.style.height = Math.min(e.target.scrollHeight, 384) + 'px';

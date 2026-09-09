@@ -210,6 +210,10 @@ def test_a_single_failed_poll_does_not_kill_a_healthy_answer():
     assert re.search(r"pollFails\s*>=\s*2", fail_branch)
 
 
+def test_nothing_collapses_the_legend_behind_the_users_back():
+    assert "$('hud').open" not in SCRIPT
+
+
 def test_no_abort_is_silent():
     assert "else if (abortNote)" not in SCRIPT
 
