@@ -2,10 +2,10 @@
 .venv
 .ruff_cache
 .pytest_cache
-__pycache__
-*.pyc
+**/__pycache__
+**/*.pyc
 .vscode
-.env
+**/.env
 .DS_Store
 Dockerfile
 compose.yaml
