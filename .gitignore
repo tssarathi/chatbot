@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+graphify-out/
 .vscode/settings.json
 .env
 .DS_Store
