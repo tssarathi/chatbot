@@ -3,7 +3,9 @@ name: chatbot
 x-site: &site
   build: .
   image: chatbot-site
-  depends_on: [modellink, sessions]
+  depends_on:
+    modellink: {condition: service_started}
+    sessions: {condition: service_healthy}
   ports: ["127.0.0.1:8200:8000"]
   healthcheck:
     test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/healthz')"]
@@ -22,6 +24,11 @@ services:
   sessions:
     image: redis:7-alpine
     networks: [onprem, cloud]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
 
   modellink:
     image: nginx:alpine
@@ -71,8 +78,11 @@ configs:
         listen 11434;
         resolver 127.0.0.11 ipv6=off valid=30s;
         set $$ollama http://host.docker.internal:11434;
+        client_max_body_size 0;
         location / {
           proxy_pass $$ollama$$request_uri;
+          proxy_http_version 1.1;
+          proxy_set_header Connection "";
           proxy_set_header Host localhost:11434;
           proxy_buffering off;
           proxy_request_buffering off;
