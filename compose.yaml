@@ -2,7 +2,8 @@ name: chatbot
 
 x-site: &site
   build: .
-  depends_on: [modellink]
+  image: chatbot-site
+  depends_on: [modellink, sessions]
   ports: ["127.0.0.1:8200:8000"]
   healthcheck:
     test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/healthz')"]
@@ -14,8 +15,14 @@ x-site: &site
 x-site-env: &site-env
   OLLAMA_URL: http://modellink:11434
   MODEL_NAME: granite3.1-moe:1b
+  SESSION_STORE: ${SESSION_STORE:-memory}
+  REDIS_URL: redis://sessions:6379
 
 services:
+  sessions:
+    image: redis:7-alpine
+    networks: [onprem, cloud]
+
   modellink:
     image: nginx:alpine
     networks: [onprem, cloud]

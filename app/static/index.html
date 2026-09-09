@@ -854,6 +854,10 @@
 				color: var(--bad);
 			}
 
+			#log .kept {
+				color: var(--ok);
+			}
+
 			#log .empty {
 				color: var(--muted);
 			}
@@ -1048,6 +1052,37 @@
 				return el;
 			}
 
+			async function restore() {
+				let msgs = [];
+				try {
+					const r = await fetch('/history', {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({ session: SESSION }),
+						cache: 'no-store',
+						signal: AbortSignal.timeout(3000)
+					});
+					if (!r.ok) throw new Error('HTTP ' + r.status);
+					msgs = (await r.json()).messages || [];
+				} catch {
+					return null;
+				}
+				messages.innerHTML = '';
+				for (const m of msgs) {
+					if (m.role === 'user') {
+						addUser(m.content);
+					} else {
+						const el = addAssistant();
+						const prose = el.querySelector('.prose');
+						prose.innerHTML = md(m.content);
+						highlight(prose);
+					}
+				}
+				placeComposer();
+				scrollDown();
+				return msgs.length;
+			}
+
 			function scrollDown() {
 				const s = $('scroll');
 				s.scrollTop = s.scrollHeight;
@@ -1134,12 +1169,8 @@
 						prose.innerHTML = md(acc) + '<span class="err">stream ended early</span>';
 					}
 				} catch (e) {
-					if (e.name !== 'AbortError') {
-						prose.innerHTML = md(acc) + `<span class="err">${esc(String(e))}</span>`;
-					} else {
-						const why = abortNote || 'answer stopped';
-						prose.innerHTML = md(acc) + `<span class="err">${esc(why)}</span>`;
-					}
+					const why = e.name === 'AbortError' ? abortNote || 'answer stopped' : String(e);
+					prose.innerHTML = md(acc) + `<span class="err">${esc(why)}</span>`;
 				} finally {
 					abortNote = null;
 					ctrl = null;
@@ -1180,7 +1211,7 @@
 				return m < 60 ? `${m}m ${Math.floor(s % 60)}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
 			};
 
-			function logRow(what, sub) {
+			function logRow(what, sub, cls) {
 				const ul = $('log');
 				ul.querySelector('.empty')?.remove();
 				const li = document.createElement('li');
@@ -1189,7 +1220,7 @@
 				li.querySelector('.what').textContent = what;
 				if (sub) {
 					const d = document.createElement('div');
-					d.className = 'lost';
+					d.className = cls || 'lost';
 					d.textContent = sub;
 					li.querySelector('div').append(d);
 				}
@@ -1271,15 +1302,29 @@
 
 						const seen = (Date.now() - state.lastOk) / 1000;
 						const gap = Math.max(0, seen - (d.uptime_s ?? 0)).toFixed(1);
-						const lost = messages.children.length;
+						const had = messages.children.length;
+						const from = state.site;
 						ctrl?.abort();
-						logRow(
-							`${state.site} → ${d.site} · outage ${gap}s`,
-							lost ? `conversation lost: ${lost} messages` : null
-						);
-						if (lost) {
-							messages.innerHTML = '';
-							placeComposer();
+						if (d.session_store === 'memory') {
+							logRow(
+								`${from} → ${d.site} · outage ${gap}s`,
+								had ? `conversation lost: ${had} messages` : null
+							);
+							if (had) {
+								messages.innerHTML = '';
+								placeComposer();
+							}
+						} else {
+							restore().then((n) => {
+								const move = `${from} → ${d.site} · outage ${gap}s`;
+								if (n === null) {
+									logRow(move, had ? `store unreachable: ${had} messages may be stale` : null);
+								} else if (n) {
+									logRow(move, `conversation preserved: ${n} messages`, 'kept');
+								} else {
+									logRow(move, had ? `store had nothing: ${had} messages cleared` : null);
+								}
+							});
 						}
 					} else if (state.down) {
 						logRow(state.instance ? 'reconnected · same process' : 'connected');
