@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import os
 import socket
@@ -52,27 +53,33 @@ LINK: dict[str, float | str | None] = {
 }
 
 
+async def _probe_once(client: httpx.AsyncClient, loop: Any, url: httpx.URL) -> None:
+    t0 = time.monotonic()
+    try:
+        r = await client.get(f"{OLLAMA_URL}/api/version")
+        r.raise_for_status()
+        rtt = (time.monotonic() - t0) * 1000
+        prev = LINK["rtt_ms"]
+        LINK["rtt_ms"] = round(rtt if not isinstance(prev, float) else 0.3 * rtt + 0.7 * prev, 2)
+        LINK["error"] = None
+    except Exception as exc:
+        LINK["rtt_ms"] = LINK["ttft_ms"] = LINK["tok_per_s"] = None
+        LINK["model_ip"] = None
+        LINK["error"] = exc.__class__.__name__
+        return
+    try:
+        info = await loop.getaddrinfo(url.host, url.port or 11434, family=socket.AF_INET)
+        LINK["model_ip"] = info[0][4][0]
+    except Exception:
+        LINK["model_ip"] = None
+
+
 async def _probe() -> None:
     url = httpx.URL(OLLAMA_URL)
     loop = asyncio.get_running_loop()
     async with httpx.AsyncClient(timeout=2) as client:
         while True:
-            t0 = time.monotonic()
-            try:
-                r = await client.get(f"{OLLAMA_URL}/api/version")
-                r.raise_for_status()
-                rtt = (time.monotonic() - t0) * 1000
-                prev = LINK["rtt_ms"]
-                LINK["rtt_ms"] = round(
-                    rtt if not isinstance(prev, float) else 0.3 * rtt + 0.7 * prev, 2
-                )
-                info = await loop.getaddrinfo(url.host, url.port or 11434, family=socket.AF_INET)
-                LINK["model_ip"] = info[0][4][0]
-                LINK["error"] = None
-            except (httpx.HTTPError, OSError) as exc:
-                LINK["rtt_ms"] = LINK["ttft_ms"] = LINK["tok_per_s"] = None
-                LINK["model_ip"] = None
-                LINK["error"] = exc.__class__.__name__
+            await _probe_once(client, loop, url)
             await asyncio.sleep(2)
 
 
@@ -81,6 +88,8 @@ async def lifespan(_: FastAPI):
     task = asyncio.create_task(_probe())
     yield
     task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
     if REDIS is not None:
         await REDIS.aclose()
 
@@ -127,7 +136,10 @@ def whereami():
 
 @app.post("/history")
 async def history(ask: Session):
-    return {"messages": await _load(ask.session)}
+    try:
+        return {"messages": await _load(ask.session)}
+    except (StoreError, ValueError):
+        return {"messages": []}
 
 
 class StoreError(Exception):

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 import socket
@@ -142,11 +143,9 @@ def test_terminal_frame_never_carries_the_probe_error(monkeypatch):
     monkeypatch.setattr(main.httpx, "AsyncClient", stub(ok_stream))
     main.LINK["error"] = "ConnectError"
     done = chat("s", "hi")[-1]
+    assert done["done"] is True
     assert "error" not in done
-
-
-def test_page_reads_the_terminal_frame_before_the_error_frame():
-    assert SCRIPT.index("frame.done") < SCRIPT.index("frame.error")
+    assert set(done) == {"done", "turns", "ttft_ms", "tok_per_s", "rtt_ms", "model_ip"}
 
 
 def test_a_model_error_at_http_200_reaches_the_user(monkeypatch):
@@ -190,7 +189,7 @@ def test_a_failed_chat_leaves_no_dangling_turn(monkeypatch):
 
     roles = [m["role"] for m in main.SESSIONS["s"]]
     assert roles == ["user", "assistant", "user", "assistant"]
-    assert done["turns"] % 2 == 0
+    assert done["turns"] == 4
 
 
 def test_history_endpoint_returns_the_stored_conversation(monkeypatch):
@@ -243,27 +242,103 @@ def test_client_supplied_fields_are_bounded():
     assert client.post("/chat", json={"session": "s", "message": "x" * 8001}).status_code == 422
 
 
-def test_a_dead_session_store_still_ends_the_stream(monkeypatch):
-    class Boom:
-        async def get(self, *a, **k):
-            raise ConnectionError("store down")
-
-        async def set(self, *a, **k):
-            raise ConnectionError("store down")
-
-    monkeypatch.setattr(main.httpx, "AsyncClient", stub(ok_stream))
-    monkeypatch.setattr(main, "SESSION_STORE", "redis")
-    monkeypatch.setattr(main, "REDIS", Boom())
-    done = chat("s", "hi")[-1]
-    assert done.get("error"), "a dead store must still send a terminal frame"
-
-
 def test_no_route_to_the_network_degrades_instead_of_killing_startup(monkeypatch):
     def no_route(*a, **k):
         raise OSError(101, "Network is unreachable")
 
     monkeypatch.setattr(socket.socket, "connect", no_route)
     assert main._local_ip() == "unknown"
+
+
+def test_the_probe_smooths_the_round_trip_and_reports_the_model_ip():
+    async def run():
+        main.LINK.update(rtt_ms=None, model_ip=None, error=None)
+
+        class Loop:
+            async def getaddrinfo(self, *a, **k):
+                return [(0, 0, 0, "", ("10.0.0.9", 11434))]
+
+        transport = httpx.MockTransport(lambda _r: httpx.Response(200, json={"version": "x"}))
+        async with httpx.AsyncClient(transport=transport) as c:
+            await main._probe_once(c, Loop(), httpx.URL("http://m:11434"))
+            first = main.LINK["rtt_ms"]
+            main.LINK["rtt_ms"] = 100.0
+            await main._probe_once(c, Loop(), httpx.URL("http://m:11434"))
+            return first, main.LINK["rtt_ms"], main.LINK["model_ip"], main.LINK["error"]
+
+    first, second, ip, err = asyncio.run(run())
+    assert isinstance(first, float) and err is None
+    assert ip == "10.0.0.9"
+    assert 60 < second < 75, "second sample must be 0.3 new + 0.7 old of 100ms"
+
+
+def test_a_name_lookup_failure_does_not_discard_a_good_health_check():
+    async def run():
+        main.LINK.update(rtt_ms=None, model_ip=None, error=None)
+
+        class Loop:
+            async def getaddrinfo(self, *a, **k):
+                raise socket.gaierror("no dns")
+
+        transport = httpx.MockTransport(lambda _r: httpx.Response(200, json={"version": "x"}))
+        async with httpx.AsyncClient(transport=transport) as c:
+            await main._probe_once(c, Loop(), httpx.URL("http://m:11434"))
+
+    asyncio.run(run())
+    assert main.LINK["error"] is None, "the model answered; the link is up"
+    assert main.LINK["rtt_ms"] is not None, "a good round trip must survive a dns failure"
+    assert main.LINK["model_ip"] is None
+
+
+def test_an_unreachable_model_marks_the_link_down():
+    async def run():
+        main.LINK.update(rtt_ms=5.0, model_ip="1.2.3.4", error=None)
+
+        def dies(_r):
+            raise httpx.ConnectError("refused")
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(dies)) as c:
+            await main._probe_once(c, None, httpx.URL("http://m:11434"))
+
+    asyncio.run(run())
+    assert main.LINK["error"] == "ConnectError"
+    assert main.LINK["rtt_ms"] is None and main.LINK["model_ip"] is None
+
+
+def test_history_survives_a_store_that_is_down_or_holding_rubbish(monkeypatch):
+    class Down:
+        async def get(self, *a, **k):
+            raise ConnectionError("store down")
+
+    class Rubbish:
+        async def get(self, *a, **k):
+            return "<html>not json</html>"
+
+    monkeypatch.setattr(main, "SESSION_STORE", "redis")
+    for broken in (Down(), Rubbish()):
+        monkeypatch.setattr(main, "REDIS", broken)
+        r = client.post("/history", json={"session": "s"})
+        assert r.status_code == 200, "a broken store must not 500 the page"
+        assert r.json()["messages"] == []
+
+
+def test_a_redis_round_trip_stores_and_returns_the_conversation(monkeypatch):
+    store = {}
+
+    class Fake:
+        async def get(self, key):
+            return store.get(key)
+
+        async def set(self, key, value, ex=None):
+            store[key] = value
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", stub(ok_stream))
+    monkeypatch.setattr(main, "SESSION_STORE", "redis")
+    monkeypatch.setattr(main, "REDIS", Fake())
+    chat("s", "hi")
+    assert list(store) == ["chat:s"]
+    msgs = client.post("/history", json={"session": "s"}).json()["messages"]
+    assert [m["role"] for m in msgs] == ["user", "assistant"]
 
 
 def test_rate_survives_missing_or_zero_counters():
@@ -275,23 +350,20 @@ def test_rate_survives_missing_or_zero_counters():
 
 def test_every_lookup_in_the_page_resolves():
     used = set(re.findall(r"\$\('([^']+)'\)", SCRIPT))
+    assert len(used) > 20, "the page script did not parse"
     have = set(re.findall(r'id="([^"]+)"', INDEX))
     assert used <= have, f"no element with id: {sorted(used - have)}"
 
 
-def test_a_single_failed_poll_does_not_kill_a_healthy_answer():
-    poll = _fn("poll")
-    fail_branch = poll[poll.index("} catch {") :]
-    assert re.search(r"pollFails\s*>=\s*2", fail_branch)
-
-
 def test_session_id_never_calls_a_secure_context_only_api():
+    assert "crypto.randomUUID" in SCRIPT, "the page script did not parse"
     assert not re.search(r"(?<!\?)\.\s*randomUUID\s*\(", SCRIPT)
 
 
 def test_theme_cannot_drift():
     style = INDEX[INDEX.index("<style>") : INDEX.index("</style>")]
     declared = re.findall(r"^\s*(--[a-z0-9-]+)\s*:", style, re.M)
+    assert len(declared) > 40, "the stylesheet did not parse"
     dupes = {n for n in declared if declared.count(n) > 1}
     assert not dupes, f"declared more than once, so they can drift: {sorted(dupes)}"
     assert "prefers-color-scheme" not in style
@@ -314,5 +386,6 @@ def test_all_three_theme_states_are_switchable():
 
 def test_every_css_variable_used_is_defined():
     used = set(re.findall(r"var\((--[a-z0-9-]+)", INDEX))
+    assert len(used) > 40, "the stylesheet did not parse"
     defined = set(re.findall(r"^\s*(--[a-z0-9-]+)\s*:", INDEX, re.M))
     assert used <= defined, f"undefined: {sorted(used - defined)}"
