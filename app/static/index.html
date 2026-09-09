@@ -122,6 +122,7 @@
 				top: 0;
 				z-index: 30;
 				width: 100%;
+				pointer-events: none;
 
 				padding: 0.6875rem 0.25rem 0.25rem 0.375rem;
 				margin-bottom: -3rem;
@@ -153,6 +154,7 @@
 			}
 
 			.icon-btn {
+				pointer-events: auto;
 				display: flex;
 				align-items: center;
 				justify-content: center;
@@ -187,7 +189,7 @@
 				flex-direction: column;
 				justify-content: space-between;
 				width: 100%;
-				max-width: min(52rem, 100vw - 620px);
+				max-width: min(52rem, max(22rem, 100vw - 620px));
 				margin: 0 auto 0.75rem;
 				padding: 0 0.875rem;
 			}
@@ -471,7 +473,7 @@
 			#placeholder {
 				margin: auto;
 				width: 100%;
-				max-width: min(52rem, 100vw - 620px);
+				max-width: min(52rem, max(22rem, 100vw - 620px));
 				padding: 6rem 0.25rem;
 				text-align: center;
 			}
@@ -538,7 +540,7 @@
 			#bottom {
 				flex: none;
 				width: 100%;
-				max-width: min(52rem, 100vw - 620px);
+				max-width: min(52rem, max(22rem, 100vw - 620px));
 				margin: 0 auto;
 				padding: 0 0.75rem 0.75rem;
 			}
@@ -574,6 +576,12 @@
 				border-color: var(--composer-focus);
 			}
 
+			#input:focus-visible {
+				outline: 2px solid var(--fg);
+				outline-offset: 2px;
+				border-radius: 0.5rem;
+			}
+
 			.composer-inner {
 				padding: 0 0.5rem;
 				display: flex;
@@ -597,7 +605,7 @@
 			}
 
 			#input::placeholder {
-				color: var(--gray-400);
+				color: var(--muted);
 			}
 
 			.composer-bar {
@@ -867,12 +875,12 @@
 		<div id="app">
 			<nav class="navbar">
 				<div class="navbar-actions">
-					<button class="icon-btn" id="new-chat" aria-label="New Chat">
+					<button type="button" class="icon-btn" id="new-chat" aria-label="New Chat">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
 							<path stroke-linecap="round" d="M12 5v14M5 12h14" />
 						</svg>
 					</button>
-					<button class="icon-btn" id="theme" aria-label="Toggle theme">
+					<button type="button" class="icon-btn" id="theme" aria-label="Toggle theme">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
 						</svg>
@@ -890,13 +898,13 @@
 						Suggested
 					</div>
 					<div class="sugg-list">
-						<button class="sugg" data-p="Explain what a hybrid cloud is in two sentences.">
+						<button type="button" class="sugg" data-p="Explain what a hybrid cloud is in two sentences.">
 							<b>Explain hybrid cloud</b><i>in two sentences</i>
 						</button>
-						<button class="sugg" data-p="Remember this for later: the maintenance window is Tuesday 0200 UTC.">
+						<button type="button" class="sugg" data-p="Remember this for later: the maintenance window is Tuesday 0200 UTC.">
 							<b>Set a maintenance window</b><i>then ask for it again after the move</i>
 						</button>
-						<button class="sugg" data-p="Reply with only a markdown task list using - [ ] checkboxes, one line each, for: chat, move the app, cut the model link, restore it. No other text.">
+						<button type="button" class="sugg" data-p="Reply with only a markdown task list using - [ ] checkboxes, one line each, for: chat, move the app, cut the model link, restore it. No other text.">
 							<b>Rehearsal checklist</b><i>as a task list</i>
 						</button>
 					</div>
@@ -959,7 +967,7 @@
 							<span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg></span>
 							<span id="chip-name">—</span>
 						</div>
-						<button id="send" disabled aria-label="Send message">
+						<button type="button" id="send" disabled aria-label="Send message">
 							<svg viewBox="0 0 24 24" fill="currentColor">
 								<path fill-rule="evenodd" d="M12 2.25a.75.75 0 0 1 .75.75v16.19l6.22-6.22a.75.75 0 1 1 1.06 1.06l-7.5 7.5a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 1 1 1.06-1.06l6.22 6.22V3a.75.75 0 0 1 .75-.75Z" transform="rotate(180 12 12)" />
 							</svg>
@@ -1094,7 +1102,10 @@
 			let linkDownPolls = 0;
 			let pollFails = 0;
 
+			let reader = null;
+
 			async function send() {
+				abortNote = null;
 				const text = $('input').value.trim();
 				if (!text || busy) return;
 				busy = true;
@@ -1119,7 +1130,7 @@
 					});
 					if (!r.ok) throw new Error(`HTTP ${r.status}`);
 
-					const reader = r.body.getReader();
+					reader = r.body.getReader();
 					const dec = new TextDecoder();
 					let buf = '';
 
@@ -1133,17 +1144,24 @@
 
 						for (const part of parts) {
 							if (!part.startsWith('data: ')) continue;
-							const frame = JSON.parse(part.slice(6));
+							let frame;
+							try {
+								frame = JSON.parse(part.slice(6));
+							} catch {
+								continue;
+							}
 
 							if (frame.done) {
 								ended = true;
 								prose.innerHTML = md(acc);
 								highlight(prose);
 								const bits = [];
-								if (frame.ttft_ms != null) bits.push(`${frame.ttft_ms} ms to first token`);
-								if (frame.tok_per_s != null) bits.push(`${frame.tok_per_s} tok/s`);
+								const ttft = Number(frame.ttft_ms);
+								const rate = Number(frame.tok_per_s);
+								if (Number.isFinite(ttft)) bits.push(`${ttft} ms to first token`);
+								if (Number.isFinite(rate)) bits.push(`${rate} tok/s`);
 								el.querySelector('.actions').innerHTML =
-									'<button class="act" title="Copy" aria-label="Copy">' +
+									'<button type="button" class="act" title="Copy" aria-label="Copy">' +
 									'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' +
 									'<path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"/></svg>' +
 									`</button><span class="stat">${bits.join(' · ')}</span>`;
@@ -1172,6 +1190,7 @@
 					const why = e.name === 'AbortError' ? abortNote || 'answer stopped' : String(e);
 					prose.innerHTML = md(acc) + `<span class="err">${esc(why)}</span>`;
 				} finally {
+					reader?.cancel().catch(() => {});
 					abortNote = null;
 					ctrl = null;
 					prose.querySelector('.caret')?.remove();
@@ -1283,11 +1302,12 @@
 					if (!r.ok) throw new Error('HTTP ' + r.status);
 					d = await r.json();
 					if (!d.instance_id) throw new Error('no instance_id');
+					if (!d.link || typeof d.link !== 'object') throw new Error('no link');
 				} catch {
 					pollFails += 1;
 					if (pollFails >= 2 && !state.down) {
 						state.down = true;
-						abortNote = 'lost contact with the app';
+						if (busy) abortNote = 'lost contact with the app';
 						ctrl?.abort();
 						$('hud-dot').className = 'dot bad';
 						$('hud-site').textContent = 'reconnecting…';
@@ -1343,6 +1363,9 @@
 						abortNote = 'model unreachable (' + d.link.error + ')';
 						ctrl?.abort();
 					}
+				} catch {
+					state.down = true;
+					$('hud-dot').className = 'dot bad';
 				} finally {
 					polling = false;
 				}
