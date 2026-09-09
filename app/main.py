@@ -32,7 +32,7 @@ HOST = socket.gethostname()
 LOCAL_IP = _local_ip()
 
 OLLAMA_URL = os.getenv("OLLAMA_URL") or "http://localhost:11434"
-MODEL_NAME = os.getenv("MODEL_NAME") or "granite3.1-moe:1b"
+MODEL_NAME = os.getenv("MODEL_NAME") or "granite4.1:8b"
 STATIC = Path(__file__).parent / "static"
 INDEX = STATIC / "index.html"
 
