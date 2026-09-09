@@ -3,7 +3,7 @@
 A chat app that reports where it is running, and keeps reporting it while it moves.
 
 The chat itself is deliberately plain. The panel in the top right is the point: it shows
-the site, node, pod, address and model link, and updates once a second — including while
+the site, node, pod, address and model link, and updates once a second, including while
 the app is being moved from one place to another underneath it.
 
 ## Contents
@@ -23,7 +23,7 @@ the app is being moved from one place to another underneath it.
 ## How it works
 
 Every location fact the panel shows is either **injected** through an environment variable
-or falls back to something true about the machine it is on — the hostname, the resolved
+or falls back to something true about the machine it is on: the hostname, the resolved
 local address. Nothing is guessed or hard-coded, so the app runs bare with no configuration
 and still reports honestly.
 
@@ -57,7 +57,7 @@ YOUR MACHINE
     └── sessions (redis) ──────────────────┘   optional shared conversation store
 ```
 
-Only one of the two app containers runs at a time — both publish the same port, so
+Only one of the two app containers runs at a time, because both publish the same port, so
 swapping which one is up **is** the move. `modellink` and `sessions` sit on both networks
 and stay put.
 
@@ -67,25 +67,25 @@ container that can be cut.
 
 ## Built with
 
-- [FastAPI](https://fastapi.tiangolo.com/) and [uvicorn](https://www.uvicorn.org/) — the backend, just over 200 lines
-- [httpx](https://www.python-httpx.org/) — streaming client for the model
-- [Ollama](https://ollama.com) — runs the model
-- A single static HTML file — no build step, no framework, no bundler
-- [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify) and [highlight.js](https://highlightjs.org/) — vendored, for rendering model output safely
-- [Docker Compose](https://docs.docker.com/compose/), nginx and Redis — the two sites, the relay and the shared store
+- [FastAPI](https://fastapi.tiangolo.com/) and [uvicorn](https://www.uvicorn.org/): the backend, just over 200 lines
+- [httpx](https://www.python-httpx.org/): streaming client for the model
+- [Ollama](https://ollama.com): runs the model
+- A single static HTML file: no build step, no framework, no bundler
+- [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify) and [highlight.js](https://highlightjs.org/): vendored, for rendering model output safely
+- [Docker Compose](https://docs.docker.com/compose/), nginx and Redis: the two sites, the relay and the shared store
 
 ## Getting started
 
 ### Prerequisites
 
-- [uv](https://docs.astral.sh/uv/) — installs Python 3.12 itself if you don't have it
+- [uv](https://docs.astral.sh/uv/): installs Python 3.12 itself if you don't have it
 - [Ollama](https://ollama.com), with the model pulled:
 
   ```sh
   ollama pull granite3.1-moe:1b
   ```
 
-- [Docker](https://docs.docker.com/get-docker/) — only for the containerised sites
+- [Docker](https://docs.docker.com/get-docker/): only for the containerised sites
 
 ### Run it directly
 
@@ -103,14 +103,14 @@ All optional. Each falls back to something true about the machine.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SITE` | machine hostname | Name reported as the app's location |
-| `PLATFORM` | `unknown` | `on-prem` / `cloud` — drives the panel's accent colour |
+| `PLATFORM` | `unknown` | `on-prem` / `cloud`, drives the panel's accent colour |
 | `REGION` | `unknown` | Region label |
 | `NODE_NAME` | machine hostname | Node the app is running on |
 | `POD_NAME` | machine hostname | Pod or container name |
 | `POD_IP` | resolved local address | Leave unset to report the real address |
 | `OLLAMA_URL` | `http://localhost:11434` | Where the model is served from |
 | `MODEL_NAME` | `granite3.1-moe:1b` | Model to use |
-| `SESSION_STORE` | `memory` | `memory` or `redis` — where conversation state lives |
+| `SESSION_STORE` | `memory` | `memory` or `redis`, where conversation state lives |
 | `REDIS_URL` | `redis://sessions:6379` | Shared store, used when `SESSION_STORE=redis` |
 
 In Kubernetes, `NODE_NAME`, `POD_NAME` and `POD_IP` come from the Downward API.
@@ -121,8 +121,8 @@ SITE=cloud-syd PLATFORM=cloud uv run uvicorn app.main:app
 
 ## Running the two sites
 
-Two sites, one published port, one model. Only one site runs at a time — swapping which
-one **is** the move. The browser URL never changes; the container's address and subnet do,
+Two sites, one published port, one model. Only one site runs at a time, and swapping which
+one is up **is** the move. The browser URL never changes; the container's address and subnet do,
 and the gap between the two commands is the outage the panel measures.
 
 ```sh
@@ -152,7 +152,7 @@ panel reports `conversation lost`. Point the sites at the shared store and the s
 reports `conversation preserved` instead, because the new process reads the conversation
 the old one wrote:
 
-`SESSION_STORE` is read from your shell on each `up`, so **export it once** — setting it on
+`SESSION_STORE` is read from your shell on each `up`, so **export it once**. Setting it on
 only the first command leaves the other site in `memory` mode, which silently breaks the
 comparison:
 
@@ -162,7 +162,7 @@ docker compose --profile onprem up -d --build
 # ...then the same move commands as above
 ```
 
-Same move, same outage, same new address — only the outcome differs. Stateless to deploy
+Same move, same outage, same new address. Only the outcome differs. Stateless to deploy
 is not the same as holding no state.
 
 ## HTTP API
@@ -183,9 +183,9 @@ is no authentication, so the id is the only thing protecting a conversation, and
 segment ends up in every access log.
 
 `/chat` frames are `data: {...}` lines carrying one of `token`, `error`, or a terminal
-`done` receipt. Any failure — an unreachable model, a model-reported error, a malformed
-reply, or an unreachable session store — ends the stream with a frame rather than dropping
-the connection.
+`done` receipt. Any failure ends the stream with a frame rather than dropping the
+connection: an unreachable model, a model-reported error, a malformed reply, or an
+unreachable session store.
 
 ## Development
 
@@ -205,7 +205,7 @@ answer silently. Most of those exist because the corresponding bug happened.
 
 **Ollama runs on the host, not in a container.** It is already installed and running there.
 A containerised Ollama gets no GPU on macOS, but measured on this model the difference is
-single-digit milliseconds to first token at identical throughput — so this is a setup
+single-digit milliseconds to first token at identical throughput, so this is a setup
 convenience, not a performance decision.
 
 **The relay exists to be cut.** With the model on the host, nothing between the app and the
