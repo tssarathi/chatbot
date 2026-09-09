@@ -128,6 +128,13 @@ def test_whereami_matches_what_the_page_reads():
     assert read <= set(body), f"page reads fields /whereami does not return: {read - set(body)}"
 
 
+def test_the_panel_says_where_conversations_are_kept():
+    assert 'id="f-sessions"' in INDEX
+    paint = _fn("paint")
+    assert "d.session_store" in paint, "the panel must report the store it is using"
+    assert "in this process" in paint and "shared store" in paint
+
+
 def test_chat_streams_and_reports_its_own_timings(monkeypatch):
     monkeypatch.setattr(main.httpx, "AsyncClient", stub(ok_stream))
     frames = chat("s", "hi")
