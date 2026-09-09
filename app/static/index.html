@@ -53,7 +53,7 @@
 
 				--hr: light-dark(var(--gray-50), color-mix(in oklch, var(--gray-850) 30%, transparent));
 				--composer-hover: light-dark(var(--gray-200), var(--gray-800));
-				--composer-focus: light-dark(var(--gray-100), var(--gray-800));
+				--composer-focus: light-dark(var(--gray-600), var(--gray-400));
 				--composer-border: light-dark(var(--gray-100), var(--gray-850));
 				--composer-bg: light-dark(rgb(255 255 255 / 0.05), color-mix(in oklch, var(--gray-500) 5%, transparent));
 				--hover-soft: light-dark(color-mix(in oklch, var(--gray-50) 40%, transparent), color-mix(in oklch, var(--gray-800) 40%, transparent));
@@ -574,12 +574,6 @@
 
 			.composer:focus-within {
 				border-color: var(--composer-focus);
-			}
-
-			#input:focus-visible {
-				outline: 2px solid var(--fg);
-				outline-offset: 2px;
-				border-radius: 0.5rem;
 			}
 
 			.composer-inner {
