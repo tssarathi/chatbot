@@ -189,6 +189,7 @@ def test_openshift_on_aws_detects_rosa(monkeypatch):
     monkeypatch.delenv("PLATFORM", raising=False)
     assert main._detect_platform(node) == "rosa"
 
+
 def test_the_panel_says_where_conversations_are_kept():
     assert 'id="f-sessions"' in INDEX
     paint = _fn("paint")
@@ -457,3 +458,86 @@ def test_every_css_variable_used_is_defined():
     assert len(used) > 40, "the stylesheet did not parse"
     defined = set(re.findall(r"^\s*(--[a-z0-9-]+)\s*:", INDEX, re.M))
     assert used <= defined, f"undefined: {sorted(used - defined)}"
+
+
+def _compose():
+    import yaml
+
+    return yaml.safe_load((Path(main.__file__).parent.parent / "compose.yaml").read_text())
+
+
+def test_only_one_site_can_claim_the_published_port():
+    """Two sites on one port is the move. Compose must never start both by itself."""
+    claims: dict[str, list[str]] = {}
+    for name, svc in _compose()["services"].items():
+        for port in svc.get("ports", []):
+            claims.setdefault(port.split(":")[1], []).append(name)
+    for port, names in claims.items():
+        if len(names) > 1:
+            ungated = [n for n in names if not _compose()["services"][n].get("profiles")]
+            assert not ungated, (
+                f"port {port} is claimed by {names}; {ungated} start without a profile, "
+                f"so `docker compose --profile <other>` binds it twice"
+            )
+
+
+def _fake_cluster(tmp_path, monkeypatch):
+    import certifi
+
+    (tmp_path / "token").write_text("faketoken")
+    (tmp_path / "ca.crt").write_text(Path(certifi.where()).read_text())
+    monkeypatch.setattr(main, "SA_DIR", tmp_path)
+    monkeypatch.setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
+
+
+def test_the_apiserver_is_verified_with_a_real_ssl_context(tmp_path, monkeypatch):
+    """`verify=<str>` is deprecated in httpx and its removal would fail silently."""
+    import ssl
+    import warnings
+
+    _fake_cluster(tmp_path, monkeypatch)
+    seen = {}
+
+    def spy(*_a, **kw):
+        seen.update(kw)
+        raise RuntimeError("not connecting in a test")
+
+    monkeypatch.setattr(httpx, "Client", spy)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert main._k8s_get("/api/v1/nodes/n") is None
+    assert isinstance(seen.get("verify"), ssl.SSLContext), (
+        f"apiserver CA passed as {type(seen.get('verify')).__name__}, not an SSLContext"
+    )
+    assert not [w for w in caught if issubclass(w.category, DeprecationWarning)]
+
+
+def test_a_half_mounted_service_account_does_not_crash_whereami(tmp_path, monkeypatch):
+    """The token can rotate or the CA can be absent; neither is an exception."""
+    (tmp_path / "token").write_text("faketoken")  # no ca.crt beside it
+    monkeypatch.setattr(main, "SA_DIR", tmp_path)
+    monkeypatch.setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
+    assert main._k8s_get("/api/v1/nodes/n") is None
+    assert client.get("/whereami").status_code == 200
+
+
+def _node(labels=None, provider=""):
+    return {"metadata": {"labels": labels or {}}, "spec": {"providerID": provider}}
+
+
+@pytest.mark.parametrize(
+    ("node", "expected"),
+    [
+        (_node({"eks.amazonaws.com/nodegroup": "d"}, "aws:///a/i-1"), "eks"),
+        (_node({"node.openshift.io/os_id": "rhcos"}, "aws:///a/i-2"), "rosa"),
+        (_node({"hypershift.openshift.io/x": "y"}, "aws:///a/i-3"), "rosa"),
+        (_node({"node.openshift.io/os_id": "rhcos"}), "onprem"),
+        (_node({}, "aws:///a/i-4"), "eks"),
+        (_node({"kubernetes.io/os": "linux"}), "onprem"),
+        (None, "onprem"),
+    ],
+)
+def test_every_detection_branch_lands_on_a_known_flavour(monkeypatch, node, expected):
+    monkeypatch.delenv("PLATFORM", raising=False)
+    monkeypatch.delenv("SITE", raising=False)
+    assert main._detect_platform(node) == expected
