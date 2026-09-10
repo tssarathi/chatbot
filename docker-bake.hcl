@@ -20,9 +20,7 @@ variable "MODEL_NAME" {
 
 function "tags" {
   params = [name]
-  result = compact([
-    IMAGE_PREFIX != "" ? "${IMAGE_PREFIX}${name}:${TAG}" : "${name}:${TAG}",
-  ])
+  result = ["${IMAGE_PREFIX}${name}:${TAG}"]
 }
 
 group "default" {
