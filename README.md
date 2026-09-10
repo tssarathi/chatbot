@@ -48,7 +48,7 @@ YOUR MACHINE
     │     └── app container  10.20.0.4     │   SITE=on-prem-mel
     │                                      │
     ├── network "cloud"  ── 10.30.0.0/24 ──┤
-    │     └── app container  10.30.0.4     │   SITE=cloud-syd
+    │     └── app container  10.30.0.4     │   SITE=eks-syd
     │                                      │
     ├── model (Ollama) ── :11434 ──────────┤   granite baked into the image
     │                                      │   also published on localhost:11434
@@ -98,9 +98,9 @@ All optional. Each falls back to something true about the machine.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `SITE` | machine hostname | Name reported as the app's location |
-| `PLATFORM` | `unknown` | `on-prem` / `cloud`, drives the rail's accent colour |
-| `REGION` | `unknown` | Region label |
+| `SITE` | the detected flavour's title | Name reported as the app's location |
+| `PLATFORM` | detected from the cluster | `onprem` / `rosa` / `eks`, forced when set |
+| `REGION` | node label, else `unknown` | Region label |
 | `NODE_NAME` | machine hostname | Node the app is running on |
 | `POD_NAME` | machine hostname | Pod or container name |
 | `POD_IP` | resolved local address | Leave unset to report the real address |
@@ -120,9 +120,12 @@ SITE=rosa-syd PLATFORM=rosa uv run uvicorn app.main:app
 ## Running on localhost (Mac)
 
 ```sh
-docker compose up --build
+docker compose up -d --build onprem
 open http://localhost:8200/
 ```
+
+Naming the site enables its profile. Every site publishes the same `8200`, so each one is
+behind a profile and only the site you name comes up.
 
 Compose builds **native arch only** (arm64 on Apple Silicon). App on `8200`, model on `11434`.
 Stop host Ollama first if it already owns `11434`.
@@ -131,13 +134,13 @@ Stop host Ollama first if it already owns `11434`.
 
 ```sh
 docker compose stop onprem
-docker compose --profile eks up -d              # or: --profile rosa / --profile cloud
+docker compose up -d eks                        # or: rosa
 
 docker compose pause model                      # cut the model link
 docker compose unpause model
 
 docker compose stop eks
-docker compose up -d                            # back to on-prem
+docker compose up -d onprem                     # back to on-prem
 ```
 
 `pause` drops packets rather than refusing them. Killing the model container instead
@@ -185,7 +188,7 @@ comparison:
 
 ```sh
 export SESSION_STORE=redis
-docker compose up --build
+docker compose up -d --build onprem
 # ...then the same move commands as above
 ```
 
@@ -235,7 +238,7 @@ on the builder’s native arch during the image build and copies the cache into 
 runtime arch. Compose serves it on `11434` (loopback). On macOS the container has no GPU;
 for this small model the gap is negligible.
 
-**Images are multi-arch.** `docker compose up --build` on a Mac builds arm64 only.
+**Images are multi-arch.** `docker compose up --build onprem` on a Mac builds arm64 only.
 `docker buildx bake` produces `linux/amd64` + `linux/arm64` manifests for a registry.
 
 **The model container exists to be cut.** Pausing `model` freezes the hop mid-answer the

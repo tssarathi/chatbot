@@ -3,7 +3,11 @@
 Prerequisites
 - `KUBECONFIG` pointing at mgmt (e.g. `secrets/mgmt.kubeconfig`)
 - Cilium LB IP pool covering `10.0.0.240` (`platform/cilium/l2-lb.yaml`)
-- Image `chatbot-site:latest` available on cluster nodes (`IfNotPresent`)
+- Both images reachable from the nodes. The registry and tag live in one place,
+  the `images:` block of `kustomization.yaml`. Retarget with:
+  `kustomize edit set image chatbot-site=ghcr.io/you/chatbot-site:v1`
+- `imagePullPolicy` is `IfNotPresent`, so a re-pushed `:latest` is **not** picked up.
+  Push a new tag and bump `newTag` instead.
 
 Build & load image (lab nodes)
 ```sh
@@ -22,7 +26,7 @@ done
 
 Apply
 ```sh
-export KUBECONFIG=/Users/mobinthomas/nuberu-ai-factory/secrets/mgmt.kubeconfig
+export KUBECONFIG=/path/to/mgmt.kubeconfig
 kubectl apply -k deploy/k8s
 kubectl -n chatbot rollout status deploy/chatbot
 kubectl -n chatbot get svc chatbot
