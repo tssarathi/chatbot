@@ -3,6 +3,7 @@ import contextlib
 import json
 import os
 import socket
+import ssl
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -63,19 +64,11 @@ def _normalize_platform(raw: str | None) -> str | None:
     if not raw:
         return None
     v = raw.strip().lower().replace("_", "").replace("-", "").replace(" ", "")
-    if v in {"eks", "amazoneks", "elastickubernetes"}:
-        return "eks"
-    if v in {"rosa", "rosh", "redhatopenshiftaws"}:
-        return "rosa"
-    if v in {"onprem", "onpremise", "ocp", "openshift", "okd"}:
-        return "onprem"
-    if "eks" in v:
+    if "eks" in v or v == "cloud":  # `cloud` is the pre-flavour name for the AWS site
         return "eks"
     if "rosa" in v:
         return "rosa"
-    if v == "cloud":
-        return "eks"
-    if "onprem" in v or "openshift" in v:
+    if "onprem" in v or "openshift" in v or v in {"ocp", "okd"}:
         return "onprem"
     return None
 
@@ -90,11 +83,11 @@ def _k8s_get(path: str) -> dict[str, Any] | None:
         return None
     host = os.environ["KUBERNETES_SERVICE_HOST"]
     port = os.getenv("KUBERNETES_SERVICE_PORT") or "443"
-    token = (SA_DIR / "token").read_text().strip()
-    ca = SA_DIR / "ca.crt"
     url = f"https://{host}:{port}{path}"
     try:
-        with httpx.Client(verify=str(ca), timeout=2.0) as client:
+        token = (SA_DIR / "token").read_text().strip()
+        ca = ssl.create_default_context(cafile=str(SA_DIR / "ca.crt"))
+        with httpx.Client(verify=ca, timeout=2.0) as client:
             r = client.get(url, headers={"Authorization": f"Bearer {token}"})
             if r.status_code != 200:
                 return None
@@ -114,16 +107,9 @@ def _detect_platform(node: dict[str, Any] | None) -> str:
 
     labels = node.get("metadata", {}).get("labels") or {}
     provider = str((node.get("spec") or {}).get("providerID") or "")
-    on_aws = provider.startswith("aws://") or any(
-        k.startswith("eks.amazonaws.com/") for k in labels
-    )
     is_eks = any(k.startswith("eks.amazonaws.com/") for k in labels)
-    is_ocp = any(
-        k.startswith("node.openshift.io/")
-        or k.startswith("hypershift.openshift.io/")
-        or k == "node.openshift.io/os_id"
-        for k in labels
-    ) or "node.openshift.io/os_id" in labels
+    on_aws = provider.startswith("aws://") or is_eks
+    is_ocp = any(k.startswith(("node.openshift.io/", "hypershift.openshift.io/")) for k in labels)
     rosaish = is_ocp and (
         on_aws
         or any("rosa" in f"{k}={v}".lower() for k, v in labels.items())
@@ -148,6 +134,7 @@ def _cluster_facts() -> dict[str, Any]:
     if cached is not None and now - float(_CLUSTER_CACHE["at"]) < _CLUSTER_TTL_S:
         return cached  # type: ignore[return-value]
 
+    in_cluster = _in_cluster()
     node_name = os.getenv("NODE_NAME") or ""
     pod_name = os.getenv("POD_NAME") or ""
     namespace = os.getenv("POD_NAMESPACE") or "default"
@@ -156,7 +143,7 @@ def _cluster_facts() -> dict[str, Any]:
     node = _k8s_get(f"/api/v1/nodes/{node_name}") if node_name else None
     pod = (
         _k8s_get(f"/api/v1/namespaces/{namespace}/pods/{pod_name}")
-        if pod_name and _in_cluster()
+        if pod_name and in_cluster
         else None
     )
 
@@ -195,15 +182,14 @@ def _cluster_facts() -> dict[str, Any]:
         "node": node_name or HOST,
         "pod": pod_name or HOST,
         "pod_ip": pod_ip,
-        "namespace": namespace if _in_cluster() else None,
+        "namespace": namespace if in_cluster else None,
         "provider_id": provider_id,
         "instance_type": instance_type,
-        "in_cluster": _in_cluster(),
+        "in_cluster": in_cluster,
     }
     _CLUSTER_CACHE["at"] = now
     _CLUSTER_CACHE["facts"] = facts
     return facts
-
 
 
 async def _probe_once(client: httpx.AsyncClient, loop: Any, url: httpx.URL) -> None:
@@ -271,21 +257,8 @@ def healthz():
 
 @app.get("/whereami")
 def whereami():
-    facts = _cluster_facts()
     return {
-        "site": facts["site"],
-        "site_title": facts["site_title"],
-        "platform": facts["platform"],
-        "platform_label": facts["platform_label"],
-        "region": facts["region"],
-        "zone": facts["zone"],
-        "node": facts["node"],
-        "pod": facts["pod"],
-        "pod_ip": facts["pod_ip"],
-        "namespace": facts["namespace"],
-        "provider_id": facts["provider_id"],
-        "instance_type": facts["instance_type"],
-        "in_cluster": facts["in_cluster"],
+        **_cluster_facts(),
         "instance_id": INSTANCE_ID,
         "model": MODEL_NAME,
         "model_url": OLLAMA_URL,
