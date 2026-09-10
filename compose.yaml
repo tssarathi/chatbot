@@ -45,9 +45,11 @@ services:
       retries: 10
       start_period: 15s
 
-  # Default localhost site (no profile) so `docker compose up` just works.
+  # One published port, so every site is gated behind its own profile.
+  # `docker compose up -d onprem` enables the profile by naming the service.
   onprem:
     <<: *site
+    profiles: [onprem]
     environment:
       <<: *site-env
       SITE: on-prem-mel
