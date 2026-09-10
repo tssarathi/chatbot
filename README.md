@@ -1,219 +1,263 @@
 # chatbot
 
-A chat app that reports where it is running, and keeps reporting it while it moves.
+A chat application that reports where it is running, and keeps reporting it while it moves.
 
-The chat itself is deliberately plain. The environment rail on the right is the point: it
-shows the site, node, pod, address and model link, and updates once a second, including
-while the app is being moved from one place to another underneath it.
+The chat itself is deliberately plain. The environment rail is the subject: it shows the
+site, platform, node, pod, address and model link, and refreshes once a second, including
+while the application is relocated underneath it.
+
+The application is a demonstration of workload portability. It runs identically on a
+laptop under Docker Compose and on a Kubernetes cluster, and in both cases it determines
+its own location rather than being told.
 
 ## Contents
 
+- [Quick start](#quick-start)
 - [How it works](#how-it-works)
 - [Architecture](#architecture)
-- [Built with](#built-with)
-- [Getting started](#getting-started)
 - [Configuration](#configuration)
-- [Running on localhost (Mac)](#running-on-localhost-mac)
+- [Running with Docker Compose](#running-with-docker-compose)
 - [Where the conversation lives](#where-the-conversation-lives)
+- [Deploying to Kubernetes](#deploying-to-kubernetes)
+- [Building images](#building-images)
 - [HTTP API](#http-api)
 - [Development](#development)
-- [Design notes](#design-notes)
+- [Design decisions](#design-decisions)
 - [Third-party code](#third-party-code)
 
-## How it works
-
-Every location fact the rail shows is either **injected** through an environment variable
-or falls back to something true about the machine it is on: the hostname, the resolved
-local address. Nothing is guessed or hard-coded, so the app runs bare with no configuration
-and still reports honestly.
-
-Three mechanisms drive the rail:
-
-| Mechanism | What it does |
-| --- | --- |
-| **Instance fingerprint** | A random id generated when the process starts. The browser polls `/whereami` every second; a changed id can only mean a different process is answering, which is how a move is detected without the page reloading. |
-| **Link probe** | Every two seconds the app measures round-trip time to the model and smooths it (EWMA, 0.3 new / 0.7 old). If the model stops answering the rail goes red, and an answer being streamed is stopped with a reason rather than hanging. |
-| **Session store** | Conversation state lives either in the process (default) or in a shared store. This decides whether a move loses the conversation or keeps it. |
-
-## Architecture
-
-```
-YOUR MACHINE
-│
-├── Browser ─ http://localhost:8200
-│
-└── DOCKER
-    │
-    ├── network "onprem" ── 10.20.0.0/24 ──┐
-    │     └── app container  10.20.0.4     │   SITE=on-prem-mel
-    │                                      │
-    ├── network "cloud"  ── 10.30.0.0/24 ──┤
-    │     └── app container  10.30.0.4     │   SITE=eks-syd
-    │                                      │
-    ├── model (Ollama) ── :11434 ──────────┤   granite baked into the image
-    │                                      │   also published on localhost:11434
-    └── sessions (redis) ──────────────────┘   optional shared conversation store
-```
-
-Only one of the two app containers runs at a time, because both publish the same port, so
-swapping which one is up **is** the move. `model` and `sessions` sit on both networks and
-stay put.
-
-A message travels browser → app container → `model` → Ollama API, and the generated words
-stream back the same way. Pausing `model` cuts that hop mid-answer.
-
-## Built with
-
-- [FastAPI](https://fastapi.tiangolo.com/) and [uvicorn](https://www.uvicorn.org/): the backend, just over 200 lines
-- [httpx](https://www.python-httpx.org/): streaming client for the model
-- [Ollama](https://ollama.com): runs the model (host for bare runs; container image for Compose)
-- A single static HTML file: no build step, no framework, no bundler
-- [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify) and [highlight.js](https://highlightjs.org/): vendored, for rendering model output safely
-- [Docker Compose](https://docs.docker.com/compose/) and Redis: the two sites, the model server and the shared store
-
-## Getting started
+## Quick start
 
 ### Prerequisites
 
-- [uv](https://docs.astral.sh/uv/): installs Python 3.12 itself if you don't have it
-- [Docker](https://docs.docker.com/get-docker/): for the containerised sites and model server
-- For bare (non-Compose) runs only: [Ollama](https://ollama.com) with the model pulled:
+| Requirement | Used for |
+| --- | --- |
+| [uv](https://docs.astral.sh/uv/) | Python 3.12 and dependencies; installs Python itself if absent |
+| [Docker](https://docs.docker.com/get-docker/) | The containerised sites and the model server |
+| [Ollama](https://ollama.com) | Only for bare, non-Compose runs |
 
-  ```sh
-  ollama pull granite4.1:8b
-  ```
-
-### Run it directly
-
-```sh
-uv sync
-uv run uvicorn app.main:app --reload
-```
-
-Then open <http://localhost:8000/>. The app expects Ollama on `localhost:11434`.
-
-## Configuration
-
-All optional. Each falls back to something true about the machine.
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `SITE` | the detected flavour's title | Name reported as the app's location |
-| `PLATFORM` | detected from the cluster | `onprem` / `rosa` / `eks`, forced when set |
-| `REGION` | node label, else `unknown` | Region label |
-| `NODE_NAME` | machine hostname | Node the app is running on |
-| `POD_NAME` | machine hostname | Pod or container name |
-| `POD_IP` | resolved local address | Leave unset to report the real address |
-| `OLLAMA_URL` | `http://localhost:11434` | Where the model is served from |
-| `MODEL_NAME` | `granite4.1:8b` | Model to use |
-| `SESSION_STORE` | `memory` | `memory` or `redis`, where conversation state lives |
-| `REDIS_URL` | `redis://localhost:6379` | Shared store, used when `SESSION_STORE=redis`. Compose sets `redis://sessions:6379`. |
-
-In Kubernetes, `NODE_NAME`, `POD_NAME` and `POD_IP` come from the Downward API.
-
-```sh
-SITE=rosa-syd PLATFORM=rosa uv run uvicorn app.main:app
-```
-
-`PLATFORM` is one of `onprem` | `rosa` | `eks` (legacy `cloud` maps to `eks`).
-
-## Running on localhost (Mac)
+### Docker Compose
 
 ```sh
 docker compose up -d --build onprem
 open http://localhost:8200/
 ```
 
-Naming the site enables its profile. Every site publishes the same `8200`, so each one is
-behind a profile and only the site you name comes up.
+Naming the site activates its profile. All sites publish port `8200`, so each is gated
+behind a profile and only the site you name starts.
 
-Compose builds **native arch only** (arm64 on Apple Silicon). App on `8200`, model on `11434`.
-Stop host Ollama first if it already owns `11434`.
+The first build pulls the model into the image and is therefore slow. Compose builds for
+the host architecture only (arm64 on Apple Silicon). Stop any host Ollama already bound
+to `11434` before starting.
 
-### Move between sites
+### Bare
+
+```sh
+ollama pull granite4.1:8b
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+Open <http://localhost:8000/>. The application expects Ollama on `localhost:11434`.
+
+## How it works
+
+Every location fact the rail displays is either injected through an environment variable,
+read live from the Kubernetes API, or derived from the machine itself (hostname, resolved
+local address). Nothing is guessed or hard-coded, so the application runs with no
+configuration at all and still reports accurately.
+
+Four mechanisms drive the rail.
+
+| Mechanism | Behaviour |
+| --- | --- |
+| **Instance fingerprint** | A random identifier generated at process start. The browser polls `/whereami` every second; a changed identifier can only mean a different process is answering, which is how a move is detected without reloading the page. |
+| **Platform detection** | Inside a cluster, the application queries the Kubernetes API with its own service account and classifies the node as `onprem`, `rosa` or `eks`. Outside a cluster it falls back to environment variables. |
+| **Link probe** | Every two seconds the application measures round-trip time to the model and smooths it (EWMA, 0.3 new / 0.7 previous). If the model stops responding the rail turns red and any answer being streamed is terminated with a stated reason rather than left hanging. |
+| **Session store** | Conversation state lives either in the process (default) or in a shared store. This determines whether a move loses the conversation or preserves it. |
+
+### Platform detection
+
+`PLATFORM` takes precedence when set. Otherwise the node's labels and `providerID` are
+evaluated in this order:
+
+| Evidence | Result |
+| --- | --- |
+| Label prefixed `eks.amazonaws.com/` | `eks` |
+| OpenShift labels with an `aws://` provider | `rosa` |
+| OpenShift labels without a cloud provider | `onprem` |
+| `aws://` provider alone | `eks` |
+| Anything else | `onprem` |
+
+Region and zone are read from the standard `topology.kubernetes.io/` labels. Node, pod and
+pod IP come from the Downward API. Results are cached for 15 seconds so that a one-second
+poll does not translate into a one-second API call.
+
+Detection requires read access to nodes cluster-wide and to pods within the namespace.
+Both are granted by `deploy/k8s/rbac.yaml`.
+
+## Architecture
+
+```
+HOST
+│
+├── Browser ─ http://localhost:8200
+│
+└── DOCKER
+    │
+    ├── network "onprem" ── 10.20.0.0/24 ──┐
+    │     └── onprem site   10.20.0.x      │   SITE=on-prem-mel
+    │                                      │
+    ├── network "cloud"  ── 10.30.0.0/24 ──┤
+    │     ├── rosa site     10.30.0.x      │   SITE=rosa-syd
+    │     └── eks site      10.30.0.x      │   SITE=eks-syd
+    │                                      │
+    ├── model (Ollama) ── :11434 ──────────┤   model baked into the image,
+    │                                      │   also published on localhost:11434
+    └── sessions (Redis) ──────────────────┘   optional shared conversation store
+```
+
+Exactly one site container runs at a time, because all three publish the same port.
+Swapping which one is up constitutes the move. The `model` and `sessions` containers are
+attached to both networks and remain in place throughout.
+
+A message travels browser → site container → `model` → Ollama API, and the generated
+tokens stream back along the same path. Pausing `model` severs that hop mid-answer.
+
+## Configuration
+
+All variables are optional. Each falls back to something true about the environment.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SITE` | Title of the detected platform | Name reported as the application's location |
+| `PLATFORM` | Detected from the cluster | `onprem`, `rosa` or `eks`; forced when set |
+| `REGION` | Node label, otherwise `unknown` | Region label |
+| `NODE_NAME` | Machine hostname | Node the application is running on |
+| `POD_NAME` | Machine hostname | Pod or container name |
+| `POD_IP` | Resolved local address | Leave unset to report the real address |
+| `POD_NAMESPACE` | `default` | Namespace used when querying the pod; reported only in-cluster |
+| `OLLAMA_URL` | `http://localhost:11434` | Where the model is served from |
+| `MODEL_NAME` | `granite4.1:8b` | Model to use |
+| `SESSION_STORE` | `memory` | `memory` or `redis`; where conversation state lives |
+| `REDIS_URL` | `redis://localhost:6379` | Shared store, used when `SESSION_STORE=redis`. Compose sets `redis://sessions:6379`. |
+
+In Kubernetes, `NODE_NAME`, `POD_NAME`, `POD_IP` and `POD_NAMESPACE` are supplied by the
+Downward API. `PLATFORM` also accepts the legacy value `cloud`, which maps to `eks`.
+
+```sh
+SITE=rosa-syd PLATFORM=rosa uv run uvicorn app.main:app
+```
+
+## Running with Docker Compose
+
+### Moving between sites
 
 ```sh
 docker compose stop onprem
 docker compose up -d eks                        # or: rosa
 
-docker compose pause model                      # cut the model link
+docker compose pause model                      # sever the model link
 docker compose unpause model
 
 docker compose stop eks
-docker compose up -d onprem                     # back to on-prem
+docker compose up -d onprem                     # return to on-prem
+
+COMPOSE_PROFILES='*' docker compose down        # tear everything down
 ```
 
-`pause` drops packets rather than refusing them. Killing the model container instead
-gives connection-refused.
+The browser URL never changes. The container's address and subnet do, and the interval
+between the two commands is the outage the rail measures.
 
-## Kubernetes (Cilium LB)
+Because every site is gated behind a profile, a plain `docker compose down` removes only
+services whose profile is active and leaves the running site behind. `COMPOSE_PROFILES='*'`
+selects all of them.
 
-Manifests live under `deploy/k8s/` (Namespace, RBAC, Deployment, LoadBalancer Service).
-On the nuberu mgmt cluster the Service uses Cilium IPAM VIP **10.0.0.240**:
+`pause` drops packets rather than refusing them, reproducing a severed cable. Stopping the
+container instead produces an immediate connection refusal, which exercises a different
+path.
+
+## Where the conversation lives
+
+By default each site keeps conversations in its own memory, so a move discards them and
+the rail reports `conversation lost`. Pointing the sites at the shared store causes the
+same move to report `conversation preserved`, because the new process reads the
+conversation the previous one wrote.
+
+`SESSION_STORE` is read from the shell on each `up`, so export it once. Setting it on only
+the first command leaves the other site in `memory` mode and silently invalidates the
+comparison.
 
 ```sh
-export KUBECONFIG=/path/to/mgmt.kubeconfig
-docker build -t chatbot-site:latest .
-kubectl apply -k deploy/k8s
-kubectl -n chatbot get svc chatbot
-open http://10.0.0.240/
+export SESSION_STORE=redis
+docker compose up -d --build onprem
+# then the same move commands as above
 ```
 
-See `deploy/k8s/README.md` for image loading, model URL, and auto-detection of
-ONPREM / ROSA / EKS from node labels.
+Same move, same outage, same new address. Only the outcome differs. Being stateless to
+deploy is not the same as holding no state.
 
-### Multi-arch images
+## Deploying to Kubernetes
 
-Both Dockerfiles are multi-arch ready (`linux/amd64` + `linux/arm64`). Model weights are
-pulled once on the builder’s native arch and copied into each target.
+Manifests live under `deploy/k8s/` and are applied with Kustomize: Namespace, RBAC,
+Deployment, LoadBalancer Service, and a second Deployment plus Service for the model.
+
+```sh
+export KUBECONFIG=/path/to/kubeconfig
+kubectl apply -k deploy/k8s
+kubectl -n chatbot rollout status deploy/chatbot
+kubectl -n chatbot get svc chatbot
+```
+
+The Service requests a fixed address through Cilium IPAM (`lbipam.cilium.io/ips`). Adjust
+that annotation for your own load balancer.
+
+Both images are referenced through the `images:` block of `kustomization.yaml`, so the
+registry and tag are set in one place:
+
+```sh
+kustomize edit set image chatbot-site=ghcr.io/<you>/chatbot-site:v1
+```
+
+`imagePullPolicy` is `IfNotPresent`, so a re-pushed `latest` tag is not picked up. Push a
+new tag and update `newTag` instead.
+
+See `deploy/k8s/README.md` for image loading onto nodes and further detail on platform
+detection.
+
+## Building images
+
+Both Dockerfiles are multi-architecture ready (`linux/amd64` and `linux/arm64`). Model
+weights are pulled once on the builder's native architecture and copied into each target,
+since the weights themselves are architecture-independent.
 
 ```sh
 docker buildx create --name multi --use   # once
 IMAGE_PREFIX=ghcr.io/<you>/ docker buildx bake --push
 ```
 
-Without `IMAGE_PREFIX`, bake tags `chatbot-site` / `chatbot-model` locally — you still need
-a registry (`--push`) or a containerd image store to keep a multi-platform manifest.
-
-## Where the conversation lives
-
-By default each site keeps conversations in its own memory, so a move loses them and the
-rail reports `conversation lost`. Point the sites at the shared store and the same move
-reports `conversation preserved` instead, because the new process reads the conversation
-the old one wrote:
-
-`SESSION_STORE` is read from your shell on each `up`, so **export it once**. Setting it on
-only the first command leaves the other site in `memory` mode, which silently breaks the
-comparison:
-
-```sh
-export SESSION_STORE=redis
-docker compose up -d --build onprem
-# ...then the same move commands as above
-```
-
-Same move, same outage, same new address. Only the outcome differs. Stateless to deploy
-is not the same as holding no state.
+Without `IMAGE_PREFIX`, bake tags `chatbot-site` and `chatbot-model` locally. A registry
+(`--push`) or a containerd image store is still required to retain a multi-platform
+manifest.
 
 ## HTTP API
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET`/`HEAD` `/` | The page |
-| `GET`/`HEAD` `/healthz` | Liveness, plus the instance id. Reports no topology. |
+| `GET`, `HEAD` `/` | The page |
+| `GET`, `HEAD` `/healthz` | Liveness and the instance identifier. Reports no topology. |
 | `GET /whereami` | Everything the rail displays |
 | `POST /chat` | Streams an answer as server-sent events |
 | `POST /history` | The stored conversation for a session |
 | `GET /static/…` | Vendored browser libraries |
 
-FastAPI also serves `/docs`, `/redoc` and `/openapi.json` by default.
+FastAPI additionally serves `/docs`, `/redoc` and `/openapi.json`.
 
-`/history` takes the session id in a POST body rather than a URL path deliberately: there
-is no authentication, so the id is the only thing protecting a conversation, and a path
-segment ends up in every access log.
+`/history` takes the session identifier in a POST body rather than a URL path
+deliberately: there is no authentication, so the identifier is the only thing protecting a
+conversation, and a path segment appears in every access log.
 
 `/chat` frames are `data: {...}` lines carrying one of `token`, `error`, or a terminal
-`done` receipt. Any failure ends the stream with a frame rather than dropping the
+`done` receipt. Every failure ends the stream with a frame rather than dropping the
 connection: an unreachable model, a model-reported error, a malformed reply, or an
 unreachable session store.
 
@@ -225,31 +269,51 @@ uv run ruff format app/ tests/   # format
 uv run pytest                    # tests
 ```
 
-The suite covers the HTTP contract, the streaming failure paths and the session store, plus
-a set of invariants asserted directly against the page source: that every element id the
-script looks up exists, that no theme token is declared twice, that buttons do not fall
-back to native browser chrome, and that no code path collapses the rail or cancels an
-answer silently. Most of those exist because the corresponding bug happened.
+The suite covers the HTTP contract, the streaming failure paths, the session store and
+platform detection, alongside a set of invariants asserted directly against the page
+source: that every element identifier the script looks up exists, that every CSS custom
+property used is also defined, that all three theme states remain switchable, that buttons
+do not fall back to native browser chrome, and that no code path collapses the rail or
+cancels an answer silently.
 
-## Design notes
+Two invariants are asserted against configuration rather than code: that no two Compose
+sites can claim the published port without a profile, and that the Kubernetes API client
+verifies the cluster certificate with a real SSL context.
 
-**The model is packaged into `chatbot-model`.** `model/Dockerfile` pulls `granite4.1:8b`
-on the builder’s native arch during the image build and copies the cache into each
-runtime arch. Compose serves it on `11434` (loopback). On macOS the container has no GPU;
-for this small model the gap is negligible.
+Most of these tests exist because the corresponding defect occurred.
 
-**Images are multi-arch.** `docker compose up --build onprem` on a Mac builds arm64 only.
-`docker buildx bake` produces `linux/amd64` + `linux/arm64` manifests for a registry.
+## Design decisions
 
-**The model container exists to be cut.** Pausing `model` freezes the hop mid-answer the
-same way a pulled cable would. Stopping it instead gives connection-refused.
+**The model is packaged into `chatbot-model`.** `model/Dockerfile` pulls the model during
+the image build and copies the cache into each runtime architecture, so the image is
+self-contained and requires no host Ollama. Compose serves it on `11434`. On macOS the
+container has no GPU access; for a model of this size the difference is negligible.
 
-**Published ports are bound to loopback.** The app has no authentication by design and it
-fronts an unauthenticated model API, so both `8200` and `11434` listen only on the local
-machine. Change `ports` in `compose.yaml` if you need either reachable from elsewhere.
+**The model container exists to be severed.** Pausing it freezes the hop mid-answer in the
+same way a pulled cable would, which is the failure the link probe is built to surface.
+
+**Published ports bind to loopback.** The application has no authentication by design and
+fronts an unauthenticated model API, so `8200` and `11434` listen only on the local
+machine. Change `ports` in `compose.yaml` if either needs to be reachable externally.
+
+**Detection is cached, not live.** The Kubernetes API is queried at most once every 15
+seconds regardless of poll rate, and every failure degrades to environment variables
+rather than raising.
+
+**The page has no build step.** A single static HTML file with inline CSS and vanilla
+JavaScript, no framework and no bundler, so the served artefact is the source.
 
 ## Third-party code
 
-Browser libraries under `app/static/vendor/` are vendored rather than loaded from a CDN, so
-the page works offline and the versions are pinned. Their licences are kept alongside them,
+Browser libraries under `app/static/vendor/` are vendored rather than loaded from a CDN,
+so the page works offline and versions are pinned. Their licences are kept alongside them,
 and `VERSIONS.txt` records the versions and how the bundles were built.
+
+| Component | Role |
+| --- | --- |
+| [FastAPI](https://fastapi.tiangolo.com/), [uvicorn](https://www.uvicorn.org/) | Backend and ASGI server |
+| [httpx](https://www.python-httpx.org/) | Streaming client for the model and the Kubernetes API |
+| [Ollama](https://ollama.com) | Serves the model |
+| [Redis](https://redis.io/) | Optional shared conversation store |
+| [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [highlight.js](https://highlightjs.org/) | Rendering model output safely in the browser |
+| [Docker Compose](https://docs.docker.com/compose/), [Kustomize](https://kustomize.io/) | Local sites and cluster manifests |
