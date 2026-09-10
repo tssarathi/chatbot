@@ -22,7 +22,7 @@ spec:
       serviceAccountName: chatbot
       containers:
         - name: chatbot
-          image: 10.101.191.154:5000/chatbot-site:latest
+          image: chatbot-site
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -30,6 +30,7 @@ spec:
               drop: ["ALL"]
             runAsNonRoot: true
             runAsUser: 10001
+            readOnlyRootFilesystem: true
             seccompProfile:
               type: RuntimeDefault
           ports:
@@ -61,10 +62,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: POD_SERVICE_ACCOUNT
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.serviceAccountName
           readinessProbe:
             httpGet:
               path: /healthz

@@ -11,3 +11,13 @@ labels:
   - pairs:
       app.kubernetes.io/part-of: chatbot
     includeSelectors: false
+
+# The lab registry lives here only. Retarget both images with one edit, e.g.
+#   kustomize edit set image chatbot-site=ghcr.io/you/chatbot-site:v1
+images:
+  - name: chatbot-site
+    newName: 10.101.191.154:5000/chatbot-site
+    newTag: latest
+  - name: chatbot-model
+    newName: 10.101.191.154:5000/chatbot-model
+    newTag: latest

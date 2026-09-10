@@ -19,13 +19,15 @@ spec:
         app: chatbot-model
         app.kubernetes.io/name: chatbot-model
     spec:
+      # Ollama never calls the apiserver, so it gets no token.
+      automountServiceAccountToken: false
       # Image is pre-pulled via talosctl on this node (HTTP registry).
       # Pull onto other nodes before removing the pin:
       #   talosctl -n <ip> image pull 10.101.191.154:5000/chatbot-model:latest --namespace cri
       nodeName: talos-8d8-vgd
       containers:
         - name: model
-          image: 10.101.191.154:5000/chatbot-model:latest
+          image: chatbot-model
           imagePullPolicy: IfNotPresent
           ports:
             - name: ollama
